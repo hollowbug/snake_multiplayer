@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://ch14l33is3xho"]
+
+[ext_resource type="Texture2D" uid="uid://c6lj2ljxrj0bm" path="res://textures/placeholder.png" id="1_2spy7"]
+
+[node name="Food" type="HBoxContainer"]
+alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+texture = ExtResource("1_2spy7")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0"

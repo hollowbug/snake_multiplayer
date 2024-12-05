@@ -1,0 +1,15 @@
+[gd_scene load_steps=5 format=3 uid="uid://ynqdycwja5bs"]
+
+[ext_resource type="Texture2D" uid="uid://c6lj2ljxrj0bm" path="res://textures/placeholder.png" id="1_6wpj0"]
+[ext_resource type="Shader" path="res://walls.gdshader" id="1_omfry"]
+[ext_resource type="Texture2D" uid="uid://bxiktrjforn4m" path="res://textures/100_1174_seamless.jpg" id="2_prx3t"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3mq14"]
+shader = ExtResource("1_omfry")
+shader_parameter/texture_size = Vector2(256, 256)
+shader_parameter/large_texture = ExtResource("2_prx3t")
+
+[node name="Wall" type="Sprite2D"]
+material = SubResource("ShaderMaterial_3mq14")
+scale = Vector2(0.75, 0.75)
+texture = ExtResource("1_6wpj0")

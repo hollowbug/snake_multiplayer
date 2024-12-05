@@ -1,0 +1,93 @@
+[gd_scene load_steps=10 format=4 uid="uid://p67wtksmv1bq"]
+
+[ext_resource type="Script" path="res://game.gd" id="1_0c32a"]
+[ext_resource type="PackedScene" uid="uid://bpwriny2p6yep" path="res://food.tscn" id="2_xy7fe"]
+[ext_resource type="Texture2D" uid="uid://bxiktrjforn4m" path="res://textures/100_1174_seamless.jpg" id="4_lw23d"]
+[ext_resource type="Shader" path="res://walls.gdshader" id="5_tii62"]
+[ext_resource type="Texture2D" uid="uid://c6lj2ljxrj0bm" path="res://textures/placeholder.png" id="7_qkcyb"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_f3y2n"]
+properties/0/path = NodePath("Line2D:points")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:modulate")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:player")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0k5cs"]
+shader = ExtResource("5_tii62")
+shader_parameter/texture_size = Vector2(128, 128)
+shader_parameter/large_texture = ExtResource("4_lw23d")
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_20meo"]
+texture = ExtResource("7_qkcyb")
+texture_region_size = Vector2i(24, 24)
+0:0/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_eu4gc"]
+tile_size = Vector2i(24, 24)
+sources/0 = SubResource("TileSetAtlasSource_20meo")
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_0c32a")
+SNAKE_SPEED = 120.0
+CELL_SIZE = 24
+FOOD_SCENE_0 = ExtResource("2_xy7fe")
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://food.tscn")
+spawn_path = NodePath("..")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_f3y2n")
+
+[node name="Background" type="TextureRect" parent="."]
+modulate = Color(0.359069, 0.359069, 0.359069, 1)
+offset_right = 1920.0
+offset_bottom = 1920.0
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("4_lw23d")
+expand_mode = 1
+stretch_mode = 1
+
+[node name="TileMapLayer" type="TileMapLayer" parent="."]
+material = SubResource("ShaderMaterial_0k5cs")
+tile_map_data = PackedByteArray("AAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAHAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAJAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAALAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAANAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAPAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAARAAAAAAAAAAAAAAASAAAAAAAAAAAAAAATAAAAAAAAAAAAAAATABMAAAAAAAAAAAASABMAAAAAAAAAAAARABMAAAAAAAAAAAAQABMAAAAAAAAAAAAPABMAAAAAAAAAAAAOABMAAAAAAAAAAAANABMAAAAAAAAAAAAMABMAAAAAAAAAAAALABMAAAAAAAAAAAAKABMAAAAAAAAAAAAJABMAAAAAAAAAAAAIABMAAAAAAAAAAAAHABMAAAAAAAAAAAAGABMAAAAAAAAAAAAFABMAAAAAAAAAAAAEABMAAAAAAAAAAAADABMAAAAAAAAAAAACABMAAAAAAAAAAAABABMAAAAAAAAAAAAAABMAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA4AAAAAAAAAAAAAAA8AAAAAAAAAAAAAABAAAAAAAAAAAAAAABEAAAAAAAAAAAAAABIAAAAAAAAAAAATAAEAAAAAAAAAAAATAAIAAAAAAAAAAAATAAMAAAAAAAAAAAATAAQAAAAAAAAAAAATAAUAAAAAAAAAAAATAAYAAAAAAAAAAAATAAcAAAAAAAAAAAATAAgAAAAAAAAAAAATAAkAAAAAAAAAAAATAAoAAAAAAAAAAAATAAsAAAAAAAAAAAATAAwAAAAAAAAAAAATAA0AAAAAAAAAAAATAA4AAAAAAAAAAAATAA8AAAAAAAAAAAATABAAAAAAAAAAAAATABEAAAAAAAAAAAATABIAAAAAAAAAAAA=")
+tile_set = SubResource("TileSet_eu4gc")
+
+[node name="Line2D" type="Line2D" parent="."]
+width = 16.0
+texture_mode = 2
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+sharp_limit = 1000.0
+antialiased = true
+
+[node name="SnakeUI" type="CanvasLayer" parent="."]
+
+[node name="LabelSpeed" type="Label" parent="SnakeUI"]
+unique_name_in_owner = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -560.0
+offset_bottom = 16.0
+grow_horizontal = 0
+text = "Speed: 0"
+horizontal_alignment = 2
+
+[node name="Countdown" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 88.0
+offset_top = 29.0
+offset_right = 408.0
+offset_bottom = 541.0
+theme_override_colors/font_color = Color(1, 1, 1, 0.333333)
+theme_override_font_sizes/font_size = 512
+text = "3"
+horizontal_alignment = 1
+vertical_alignment = 1

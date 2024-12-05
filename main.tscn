@@ -1,0 +1,191 @@
+[gd_scene load_steps=4 format=3 uid="uid://dgfjd0ev67hyy"]
+
+[ext_resource type="Script" path="res://main.gd" id="1_dvxxn"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_twjuu"]
+properties/0/path = NodePath("CanvasLayer/Lobby:visible")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:game_state")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgwjk"]
+content_margin_top = 20.0
+bg_color = Color(0, 0, 0, 0.313726)
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_dvxxn")
+
+[node name="Players" type="Node2D" parent="."]
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://game.tscn")
+spawn_path = NodePath("../Players")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_twjuu")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="MainMenu" type="CenterContainer" parent="CanvasLayer"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/MainMenu"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="Label" type="Label" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+text = "NAME:"
+
+[node name="PlayerName" type="TextEdit" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Player"
+scroll_fit_content_height = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 40
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+alignment = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "PORT:"
+
+[node name="CreateGamePort" type="TextEdit" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "7000"
+scroll_fit_content_height = true
+
+[node name="Button" type="Button" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Create Game"
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
+layout_mode = 2
+text = "IP:"
+
+[node name="JoinGameIP" type="TextEdit" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "192.168.112.119"
+scroll_fit_content_height = true
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer3"]
+layout_mode = 2
+text = "PORT:"
+
+[node name="JoinGamePort" type="TextEdit" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer3"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "7000"
+scroll_fit_content_height = true
+
+[node name="Button2" type="Button" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]
+layout_mode = 2
+text = "Join Game"
+
+[node name="Lobby" type="MarginContainer" parent="CanvasLayer"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/Lobby"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Lobby/CenterContainer"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Players"
+horizontal_alignment = 1
+
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer/PanelContainer"]
+_spawnable_scenes = PackedStringArray("res://player_name.tscn")
+spawn_path = NodePath("../PlayerList")
+
+[node name="PlayerList" type="VBoxContainer" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer/PanelContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ButtonContinue" type="Button" parent="CanvasLayer"]
+unique_name_in_owner = true
+visible = false
+offset_left = 743.0
+offset_top = 438.0
+offset_right = 844.0
+offset_bottom = 460.0
+size_flags_horizontal = 8
+size_flags_vertical = 8
+text = "Start Game"
+
+[node name="YouWon" type="Label" parent="CanvasLayer"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -304.0
+offset_top = -64.0
+offset_right = 304.0
+offset_bottom = 64.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 128
+theme_override_styles/normal = SubResource("StyleBoxFlat_lgwjk")
+text = "YOU WON!"
+
+[connection signal="pressed" from="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer/Button" to="." method="_on_button_create_game_pressed"]
+[connection signal="pressed" from="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/Button2" to="." method="_on_button_join_game_pressed"]
+[connection signal="pressed" from="CanvasLayer/ButtonContinue" to="." method="_on_button_continue_pressed"]

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bpwriny2p6yep"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_l3w7w"]
+size = Vector2(8, 8)
+
+[node name="Food" type="Sprite2D"]
+texture = SubResource("PlaceholderTexture2D_l3w7w")
