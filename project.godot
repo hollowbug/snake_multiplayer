@@ -19,9 +19,13 @@ config/icon="res://icon.svg"
 
 Globals="*res://globals.gd"
 
+[debug]
+
+file_logging/enable_file_logging=true
+
 [display]
 
-window/size/viewport_width=864
+window/size/viewport_width=854
 window/size/viewport_height=480
 window/energy_saving/keep_screen_on=false
 window/stretch/mode="viewport"

@@ -1,0 +1,54 @@
+[gd_scene load_steps=3 format=3 uid="uid://lovx55vmhfat"]
+
+[ext_resource type="PackedScene" uid="uid://p67wtksmv1bq" path="res://game.tscn" id="1_nmr07"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_d3h3s"]
+properties/0/path = NodePath("PlayerName:text")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+
+[node name="Player" type="VBoxContainer"]
+offset_right = 480.0
+offset_bottom = 500.0
+size_flags_horizontal = 0
+size_flags_vertical = 0
+
+[node name="Control" type="Control" parent="."]
+custom_minimum_size = Vector2(480, 480)
+layout_mode = 2
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="Control"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -240.0
+offset_top = -240.0
+offset_right = 240.0
+offset_bottom = 240.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 6
+
+[node name="SubViewport" type="SubViewport" parent="Control/SubViewportContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+canvas_item_default_texture_filter = 0
+size = Vector2i(480, 480)
+size_2d_override = Vector2i(120, 120)
+render_target_update_mode = 4
+
+[node name="Game" parent="Control/SubViewportContainer/SubViewport" instance=ExtResource("1_nmr07")]
+unique_name_in_owner = true
+
+[node name="PlayerName" type="Label" parent="."]
+layout_mode = 2
+text = "Player"
+horizontal_alignment = 1
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_d3h3s")

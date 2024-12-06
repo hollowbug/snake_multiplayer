@@ -1,4 +1,26 @@
-[gd_resource type="Theme" load_steps=3 format=3 uid="uid://bjgqrybx3vqy3"]
+[gd_resource type="Theme" load_steps=5 format=3 uid="uid://bjgqrybx3vqy3"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_syod5"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 2.0
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hwf3l"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 2.0
+bg_color = Color(0.344076, 0.344076, 0.344076, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6gbki"]
 content_margin_left = 4.0
@@ -20,6 +42,9 @@ bg_color = Color(1, 1, 1, 0.239216)
 
 [resource]
 Button/colors/font_color = Color(0, 0, 0, 1)
+Button/colors/font_focus_color = Color(0, 0, 0, 1)
+Button/styles/focus = SubResource("StyleBoxFlat_syod5")
+Button/styles/hover = SubResource("StyleBoxFlat_hwf3l")
 Button/styles/normal = SubResource("StyleBoxFlat_6gbki")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_mkqtf")
 TextEdit/colors/background_color = Color(1, 1, 1, 0.0862745)

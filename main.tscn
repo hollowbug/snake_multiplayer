@@ -76,7 +76,7 @@ text = "PORT:"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "7000"
+text = "20527"
 scroll_fit_content_height = true
 
 [node name="Button" type="Button" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer"]
@@ -98,7 +98,7 @@ text = "IP:"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "192.168.112.119"
+text = "95.216.10.105"
 scroll_fit_content_height = true
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]
@@ -112,7 +112,7 @@ text = "PORT:"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "7000"
+text = "20527"
 scroll_fit_content_height = true
 
 [node name="Button2" type="Button" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]

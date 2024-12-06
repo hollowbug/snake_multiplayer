@@ -33,21 +33,24 @@ var _foods			:= []
 @onready var _tilemap := $TileMapLayer
 @onready var _countdown_label := %Countdown
 
-@export var player: int:
-	set(value):
-		player = value
-		_set_authority.call_deferred()
+#@export var player: int:
+	#set(value):
+		#player = value
+		#_set_authority.call_deferred()
 
 
-func _set_authority() -> void:
-	$MultiplayerSpawner.set_multiplayer_authority(player)
-	$MultiplayerSynchronizer.set_multiplayer_authority(player)
+func _set_authority(id: int) -> void:
+	$MultiplayerSpawner.set_multiplayer_authority(id)
+	$MultiplayerSynchronizer.set_multiplayer_authority(id)
 
 
 func _ready() -> void:
+	var player = int(str(name))
+	_set_authority(player)
 	if multiplayer.get_unique_id() == player:
 		_initialize()
 	else:
+		print(multiplayer.get_unique_id(), " ", player)
 		%LabelSpeed.queue_free()
 		_countdown_label.queue_free()
 		set_process(false)
