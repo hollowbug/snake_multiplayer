@@ -3,8 +3,18 @@ extends Node
 const PORT = 15255
 
 const MAPS = [
-	preload("res://maps/map_00.tscn"),
-	preload("res://maps/map_01.tscn"),
+	{
+		type = "small",
+		scene = preload("res://maps/map_00.tscn"),
+	},
+	{
+		type = "small",
+		scene = preload("res://maps/map_01.tscn"),
+	},
+	{
+		type = "large",
+		scene = preload("res://maps/map_02_large.tscn"),
+	},
 ]
 
 

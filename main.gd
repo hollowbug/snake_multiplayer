@@ -6,8 +6,10 @@ const PLAYER_NAME_LABEL = preload("res://player_name.tscn")
 #const PLAYER = preload("res://player.tscn")
 const GAME = preload("res://game.tscn")
 const GAME_SIZE := Vector2(960, 960)
-const OPPONENT_GAME_SCALE = 0.3
+const OPPONENT_GAME_SCALE = Vector2(0.3, 0.3)
 const OPPONENT_GAME_X := 1100
+const SHARED_GAME_SIZE := Vector2(1280, 960)
+const SHARED_GAME_X := 580
 
 # Host only properties
 var _players := {}
@@ -75,12 +77,12 @@ func _create_server(port: int) -> void:
 
 
 func _join_server(ip: String, port: int) -> void:
+	print("Joining server...")
 	var client = ENetMultiplayerPeer.new()
 	var err = client.create_client(ip, port)
 	if err:
 		print("Unable to join server")
 		return
-	print("Joined server")
 	multiplayer.multiplayer_peer = client
 	%MainMenu.hide()
 	#for node in get_tree().get_nodes_in_group("host_only"):
@@ -159,14 +161,21 @@ func _on_button_continue_pressed() -> void:
 func _host_start_game() -> void:
 	game_state = "game"
 	%Lobby.hide()
-	_snakes_alive = _players.keys().size()
+	var players = _players.keys()
+	var is_shared_map = (players.size() > 1
+			and Globals.MAPS[_selected_map].type == "large")
+	_snakes_alive = players.size()
+	
 	for player in _players:
 		_players[player].alive = true
 		var game = GAME.instantiate()
 		game.name = str(player)
 		#game.player = player
 		$Players.add_child(game, true)
-	_on_game_started.rpc(_players, _selected_map, _settings)
+		print("is_shared_map = ", is_shared_map)
+	for i in range(players.size()):
+		var snake_idx = i if is_shared_map else 0
+		_on_game_started.rpc_id(players[i], _players, _selected_map, snake_idx, _settings)
 
 
 @rpc("any_peer", "reliable")
@@ -175,36 +184,48 @@ func _host_return_to_lobby() -> void:
 	%Lobby.show()
 	for child in $Players.get_children():
 		child.queue_free()
-	_return_to_lobby.rpc()
+	_return_to_lobby.rpc.call_deferred()
 
 
 @rpc("reliable")
-func _on_game_started(players: Dictionary, selected_map: int, settings: Dictionary) -> void:
+func _on_game_started(players: Dictionary, selected_map: int,
+		snake_id: int, settings: Dictionary) -> void:
 	Globals.settings = settings
 	_button_continue.hide()
+	
 	# Position opponents
 	var num = $Players.get_child_count()
 	var gap = GAME_SIZE.y / num
 	var offset = 0.0
 	for child in $Players.get_children():
-		child.set_map(selected_map)
 		#print(multiplayer.get_unique_id(), " ", child.name)
 		var id = int(str(child.name))
+		var is_shared_map = Globals.MAPS[selected_map].type == "large"
 		child.set_color(players[id].color)
+		
 		if id == multiplayer.get_unique_id(): # Self
-		#if child.player == multiplayer.get_unique_id(): # Self
+			child.set_map.call_deferred(selected_map, snake_id)
 			child.food_eaten.connect(_on_food_eaten)
 			child.died.connect(_on_snake_died)
+			if is_shared_map:
+				child.moving_to.connect(_on_game_moving_to.bind(id))
 			_game = child
+		
 		else: # Opponent
-			child.scale = Vector2(OPPONENT_GAME_SCALE, OPPONENT_GAME_SCALE)
-			var y = offset * gap
-			child.position = Vector2(OPPONENT_GAME_X, y)
-			#var label = PLAYER_NAME_LABEL.instantiate()
-			#label.set_text(players[id].name)
-			#label.position = Vector2(OPPONENT_GAME_X, y + gap / 2)
-			#add_child(label)
-			offset += 1.0
+			child.set_map.call_deferred(selected_map, snake_id, !is_shared_map)
+			if !is_shared_map:
+				child.scale = OPPONENT_GAME_SCALE
+				var y = offset * gap
+				child.position = Vector2(OPPONENT_GAME_X, y)
+				var box = HBoxContainer.new()
+				box.alignment = BoxContainer.ALIGNMENT_CENTER
+				box.custom_minimum_size.x = GAME_SIZE.x * OPPONENT_GAME_SCALE.x
+				box.position = Vector2(OPPONENT_GAME_X, y + GAME_SIZE.y * OPPONENT_GAME_SCALE.y)
+				$Players.add_child(box)
+				var label = Label.new()
+				label.set_text(players[id].name)
+				box.add_child(label)
+				offset += 1.0
 
 
 func _on_food_eaten() -> void:
@@ -216,7 +237,7 @@ func _on_player_ate_food() -> void:
 	var player = multiplayer.get_remote_sender_id()
 	for id in _players:
 		if id != player and _players[id].alive:
-			_increase_speed.rpc_id(id, SPEED_INCREASE / (_snakes_alive - 1))
+			_increase_speed.rpc_id(id, Globals.settings.speed_increase / (_snakes_alive - 1))
 
 
 @rpc("reliable")
@@ -253,6 +274,25 @@ func _update_selected_map(map: int) -> void:
 	%MapCard.set_map(map)
 
 
+func _on_game_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) -> void:
+	_on_player_moving_to.rpc_id(1, pos, cells, player)
+
+
+@rpc("any_peer", "reliable")
+func _on_player_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) -> void:
+	for id in _players:
+		if player == id or "snake_cells" not in _players[id]:
+			continue
+		if pos in _players[id].snake_cells:
+			_die.rpc_id(player)
+	_players[player].snake_cells = cells
+
+
+@rpc("reliable")
+func _die() -> void:
+	_game.die()
+
+
 func _on_snake_died() -> void:
 	_on_player_died.rpc_id(1)
 
@@ -264,10 +304,10 @@ func _on_player_died() -> void:
 	_snakes_alive -= 1
 	if _snakes_alive == 1 or _players.keys().size() == 1:
 		_game_ended.rpc()
-	# If remaining players die within 0.1 seconds of one another,
-	# consider it a tie
-	await get_tree().create_timer(0.1).timeout
-	_check_winner.call_deferred()
+		# If remaining players die within 0.1 seconds of one another,
+		# consider it a tie
+		await get_tree().create_timer(0.1).timeout
+		_check_winner.call_deferred()
 
 
 func _check_winner() -> void:
@@ -292,6 +332,8 @@ func _on_game_won() -> void:
 @rpc("authority", "call_local", "reliable")
 func _return_to_lobby() -> void:
 	%YouWon.hide()
+	for child in $Players.get_children():
+		child.queue_free()
 	if _is_host:
 		_button_continue.set_text("Start Game")
 

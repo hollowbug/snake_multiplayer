@@ -1,6 +1,7 @@
-[gd_scene load_steps=7 format=4 uid="uid://g8ly1qobk6xs"]
+[gd_scene load_steps=8 format=4 uid="uid://g8ly1qobk6xs"]
 
 [ext_resource type="Texture2D" uid="uid://bxiktrjforn4m" path="res://textures/100_1174_seamless.jpg" id="1_641ir"]
+[ext_resource type="Script" path="res://map.gd" id="2_74aj5"]
 [ext_resource type="Shader" path="res://walls.gdshader" id="2_n42nm"]
 [ext_resource type="Texture2D" uid="uid://i8ob4xmd333y" path="res://textures/placeholder_texture_48.tres" id="3_e61im"]
 
@@ -26,6 +27,9 @@ offset_bottom = 960.0
 texture = ExtResource("1_641ir")
 expand_mode = 1
 stretch_mode = 1
+script = ExtResource("2_74aj5")
+snakes = PackedVector2Array(10, 10)
+snake_dirs = PackedVector2Array(1, 0)
 
 [node name="TileMapLayer" type="TileMapLayer" parent="."]
 material = SubResource("ShaderMaterial_li3wm")

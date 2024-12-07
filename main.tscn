@@ -20,7 +20,7 @@ bg_color = Color(0, 0, 0, 0.313726)
 script = ExtResource("1_dvxxn")
 
 [node name="Players" type="Node2D" parent="."]
-position = Vector2(60, 50)
+position = Vector2(60, 60)
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://game.tscn")
@@ -155,6 +155,9 @@ custom_minimum_size = Vector2(640, 640)
 
 [node name="SelectedMap" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard/VBoxContainer/SubViewportContainer" index="0"]
 size = Vector2i(640, 640)
+
+[node name="Map00" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard/VBoxContainer/SubViewportContainer/SelectedMap" index="0"]
+snakes = PackedVector2Array()
 
 [node name="Label" type="Label" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2"]
 layout_mode = 2

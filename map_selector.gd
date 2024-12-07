@@ -8,11 +8,15 @@ signal map_selected(map: int)
 func _ready() -> void:
 	if !_MAP_CARD:
 		return
-	var cont = %FlowContainer
+	var small_maps = %SmallMaps
+	var large_maps = %LargeMaps
 	for i in range(Globals.MAPS.size()):
 		var card = _MAP_CARD.instantiate()
 		card.gui_input.connect(_on_map_card_gui_input.bind(i))
-		cont.add_child(card)
+		if Globals.MAPS[i].type == "small":
+			small_maps.add_child(card)
+		else:
+			large_maps.add_child(card)
 		card.set_map(i)
 
 

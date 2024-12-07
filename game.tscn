@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://p67wtksmv1bq"]
+[gd_scene load_steps=6 format=3 uid="uid://p67wtksmv1bq"]
 
 [ext_resource type="Script" path="res://game.gd" id="1_0c32a"]
 [ext_resource type="Texture2D" uid="uid://37dktm5oyx85" path="res://textures/circle_32.png" id="2_7eanr"]
 [ext_resource type="PackedScene" uid="uid://bpwriny2p6yep" path="res://food.tscn" id="2_xy7fe"]
+[ext_resource type="Texture2D" uid="uid://bm7fs6dgiabbp" path="res://textures/eye.png" id="3_f7cbm"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_f3y2n"]
 properties/0/path = NodePath("Line2D:points")
@@ -17,7 +18,6 @@ properties/2/replication_mode = 1
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_0c32a")
-CELL_SIZE = 48
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_f3y2n")
@@ -31,6 +31,14 @@ antialiased = true
 
 [node name="Head" type="Sprite2D" parent="."]
 texture = ExtResource("2_7eanr")
+
+[node name="Sprite2D" type="Sprite2D" parent="Head"]
+position = Vector2(8, 8)
+texture = ExtResource("3_f7cbm")
+
+[node name="Sprite2D2" type="Sprite2D" parent="Head"]
+position = Vector2(8, -8)
+texture = ExtResource("3_f7cbm")
 
 [node name="Tail" type="Sprite2D" parent="."]
 texture = ExtResource("2_7eanr")

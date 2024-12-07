@@ -1,12 +1,14 @@
 extends Node2D
+class_name Game
 
+signal moving_to(pos: Vector2i, cells: Array[Vector2i])
 signal food_eaten
 signal died
 
 enum GAME_STATE { PLAYING, VIEWING_SUMMARY, VIEWING_UPGRADES }
 
-@export var CELL_SIZE := 32
-@export var GRID_SIZE := Vector2i(20, 20)
+@export var cell_size := 32
+@export var grid_size := Vector2i(20, 20)
 #@export var FOOD_SCENE : PackedScene
 #const FOOD_SCENE = preload("res://food.tscn")
 
@@ -20,14 +22,14 @@ var _input_queue 	:= []
 var _snake_length 	:= 4
 var _current_reverse_cooldown := 0.0
 var _countdown		:= 3.0
-var _snake_pos 		:= Vector2(10, 10)
-var _snake_dir		:= Vector2(1, 0)
+var _snake_pos 		: Vector2
+var _snake_dir		: Vector2
 var _move_progress	:= 0.0
 var _snake_cells	: Array[Vector2i] = []
 var _growing		:= false
 var _food_pos		: Vector2i
 var _tilemap 		: TileMapLayer
-@onready var _line 	:= $Line2D
+@onready var _line	:= $Line2D
 @onready var _head	:= $Head
 @onready var _tail	:= $Tail
 @onready var _food	:= $Food
@@ -40,33 +42,62 @@ var _tilemap 		: TileMapLayer
 		#_set_authority.call_deferred(player)
 
 
-func set_map(map: int) -> void:
+func set_map(map: int, snake_id: int = 0, map_visible: bool = true) -> void:
 	#print(multiplayer.get_unique_id(), " is loading map ", map)
-	var node = Globals.MAPS[map].instantiate()
-	add_child(node)
+	var node = Globals.MAPS[map].scene.instantiate()
+	if map_visible:
+		add_child(node)
+	cell_size = node.cell_size
+	grid_size = node.grid_size
 	_tilemap = node.get_node("TileMapLayer")
-	_move_food.call_deferred()
+	if !map_visible:
+		node.queue_free()
+		_food.hide()
+	
+	_snake_pos = node.snakes[snake_id]
+	_snake_dir = node.snake_dirs[snake_id]
+	_line.points = PackedVector2Array([
+		_grid_pos_to_world(_snake_pos),
+		_grid_pos_to_world(_snake_pos + -_snake_dir * _snake_length),
+	])
+	for i in range(-1, _snake_length):
+		_snake_cells.append(Vector2i(_snake_pos + i * -_snake_dir))
 
 
 func set_color(color: Color) -> void:
 	_line.default_color = color
-	_head.modulate = color
+	_head.self_modulate = color
 	_tail.modulate = color
 
 
-func _set_authority(id: int) -> void:
-	#print("multiplayer = ", multiplayer)
-	#print(multiplayer.get_unique_id(), " is setting authority to ", id)
-	set_multiplayer_authority(id, true)
-	#$MultiplayerSpawner.set_multiplayer_authority(id)
-	#$MultiplayerSynchronizer.set_multiplayer_authority(id)
+func on_food_eaten() -> void:
+	_growing = true
+	_snake_length += 1
+
+
+func die() -> void:
+	if paused:
+		print("game.gd:die() Error: Condition \"paused == true\" is true")
+		return
+	paused = true
+	var crash_dist = 0.3 - _move_progress
+	var tween = create_tween()
+	tween.tween_method((func(pos):
+		_line.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size)
+		),
+		_snake_pos,
+		_snake_pos + _snake_dir * crash_dist,
+		crash_dist * cell_size / current_speed
+		)
+	await tween.finished
+	died.emit()
+	modulate = Color.WEB_GRAY
 
 
 func _ready() -> void:
 	player = int(str(name))
 	await get_tree().process_frame
-	_set_authority(player)
-	#_set_authority.call_deferred(player)
+	set_multiplayer_authority(player, true)
 	if multiplayer.get_unique_id() == player:
 		_initialize()
 	else:
@@ -103,24 +134,20 @@ func _process(delta: float) -> void:
 
 func _physics_process(_delta: float) -> void:
 	var point_count = _line.get_point_count()
-	if point_count == 0:
+	if point_count < 2:
 		return
-	_head.position = _line.get_point_position(0)
+	var pos0 = _line.get_point_position(0)
+	_head.position = pos0
+	_head.rotation = _line.get_point_position(1).angle_to_point(pos0)
 	_tail.position = _line.get_point_position(point_count - 1)
-
 
 func _initialize() -> void:
 	current_speed = Globals.settings.snake_speed
-	_line.points = PackedVector2Array([
-		_grid_pos_to_world(_snake_pos),
-		_grid_pos_to_world(_snake_pos + Vector2(-_snake_length, 0)),
-	])
-	for i in range(-1, _snake_length):
-		_snake_cells.append(Vector2i(_snake_pos.x - i, _snake_pos.y))
+	_move_food.call_deferred()
 
 #func _draw() -> void:
 	#for cell in _snake_cells:
-		#var rect = Rect2(cell * CELL_SIZE, Vector2(CELL_SIZE, CELL_SIZE))
+		#var rect = Rect2(cell * cell_size, Vector2(cell_size, cell_size))
 		#draw_rect(rect, Color(1, 0, 0, 0.3))
 
 
@@ -128,17 +155,17 @@ func _move_snake(delta: float) -> void:
 	if paused:
 		return
 	
-	var dist_to_next_cell = CELL_SIZE - _move_progress
+	var dist_to_next_cell = cell_size - _move_progress
 	var movement_left = current_speed * delta
 	
 	while dist_to_next_cell <= movement_left:
 		_move_progress = 0.0
 		var movement = min(dist_to_next_cell, movement_left)
 		movement_left -= movement
-		_snake_pos = round(_snake_pos + _snake_dir * movement / CELL_SIZE)
-		var point_pos = Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * CELL_SIZE
+		_snake_pos = round(_snake_pos + _snake_dir * movement / cell_size)
+		var point_pos = Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * cell_size
 		_line.set_point_position(0, point_pos)
-		dist_to_next_cell = CELL_SIZE
+		dist_to_next_cell = cell_size
 		if !_input_queue.is_empty():
 			var dir = _input_queue.pop_front()
 			if dir.x != _snake_dir.x and dir.y != _snake_dir.y:
@@ -151,28 +178,17 @@ func _move_snake(delta: float) -> void:
 			_snake_cells.pop_back()
 			_move_tail(movement)
 		if new_pos in _snake_cells or !_is_cell_empty(new_pos):
-			paused = true
-			var crash_dist = 0.3
-			var tween = create_tween()
-			tween.tween_method((func(pos):
-				_line.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * CELL_SIZE)
-				),
-				_snake_pos,
-				_snake_pos + _snake_dir * crash_dist,
-				crash_dist * CELL_SIZE / current_speed
-				)
-			died.emit()
-			modulate = Color.WEB_GRAY
+			die()
 			return
 		_snake_cells.push_front(new_pos)
+		moving_to.emit(_snake_pos, _snake_cells)
 		if _food_pos == new_pos:
-			_growing = true
-			_snake_length += 1
+			on_food_eaten()
 			food_eaten.emit()
 			_move_food()
 	
-	_snake_pos += movement_left * _snake_dir / CELL_SIZE
-	_line.set_point_position(0, Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * CELL_SIZE)
+	_snake_pos += movement_left * _snake_dir / cell_size
+	_line.set_point_position(0, Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * cell_size)
 	_move_progress += movement_left
 	if !_growing:
 		_move_tail(movement_left)
@@ -192,6 +208,7 @@ func _move_tail(amount: float) -> void:
 		var num_points = _line.get_point_count()
 		if num_points == 0:
 			print("Error: Trying to move tail past head")
+			paused = true
 			return
 		var point1 = _line.get_point_position(num_points - 1)
 		var point2 = _line.get_point_position(num_points - 2)
@@ -218,7 +235,7 @@ func _move_food() -> void:
 			_food_pos = Vector2i(-1, -1)
 			_food.hide()
 			await get_tree().process_frame
-		pos = Vector2i(randi() % GRID_SIZE.x, randi() % GRID_SIZE.y)
+		pos = Vector2i(randi() % grid_size.x, randi() % grid_size.y)
 		if (_tilemap.get_cell_tile_data(pos) == null
 			and pos not in _snake_cells
 		):
@@ -231,15 +248,17 @@ func _move_food() -> void:
 
 
 func _grid_pos_to_world(pos: Vector2i) -> Vector2:
-	return Vector2(pos.x + 0.5, pos.y + 0.5) * CELL_SIZE
+	return Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size
 
 
 func _is_cell_empty(pos) -> bool:
 	return (
-		pos.x >= 0 and pos.x < GRID_SIZE.x
-		and pos.y >= 0 and pos.y < GRID_SIZE.y
+		pos.x >= 0 and pos.x < grid_size.x
+		and pos.y >= 0 and pos.y < grid_size.y
 		and _tilemap.get_cell_tile_data(pos) == null
 	)
+
+
 
 
 func _on_reverse_key_pressed() -> void:
@@ -251,6 +270,6 @@ func _on_reverse_key_pressed() -> void:
 	points.reverse()
 	_line.set_points(points)
 	_snake_dir = points[1].direction_to(points[0])
-	_snake_pos = round(_line.get_point_position(0) / CELL_SIZE - Vector2(0.5, 0.5))
+	_snake_pos = round(_line.get_point_position(0) / cell_size - Vector2(0.5, 0.5))
 	_snake_cells.reverse()
 	_input_queue = []
