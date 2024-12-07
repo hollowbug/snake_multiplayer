@@ -5,12 +5,10 @@ signal died
 
 enum GAME_STATE { PLAYING, VIEWING_SUMMARY, VIEWING_UPGRADES }
 
-@export var SNAKE_SPEED := 200.0
 @export var CELL_SIZE := 32
 @export var GRID_SIZE := Vector2i(20, 20)
-@export var FOOD_SCENE_0 : PackedScene
-@export var ALLOW_REVERSE := true
-@export var REVERSE_COOLDOWN := 0.0
+#@export var FOOD_SCENE : PackedScene
+#const FOOD_SCENE = preload("res://food.tscn")
 
 #const DIRECTIONS = [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]
 #const DIAGONALS = [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(1, 1), Vector2i(-1, 1)]
@@ -22,35 +20,57 @@ var _input_queue 	:= []
 var _snake_length 	:= 4
 var _current_reverse_cooldown := 0.0
 var _countdown		:= 3.0
-var _food_count		:= 1
 var _snake_pos 		:= Vector2(10, 10)
 var _snake_dir		:= Vector2(1, 0)
 var _move_progress	:= 0.0
 var _snake_cells	: Array[Vector2i] = []
 var _growing		:= false
-var _foods			:= []
+var _food_pos		: Vector2i
+var _tilemap 		: TileMapLayer
 @onready var _line 	:= $Line2D
-@onready var _tilemap := $TileMapLayer
+@onready var _head	:= $Head
+@onready var _tail	:= $Tail
+@onready var _food	:= $Food
 @onready var _countdown_label := %Countdown
 
-#@export var player: int:
+@export var player: int
 	#set(value):
 		#player = value
-		#_set_authority.call_deferred()
+		##_set_authority(player)
+		#_set_authority.call_deferred(player)
+
+
+func set_map(map: int) -> void:
+	#print(multiplayer.get_unique_id(), " is loading map ", map)
+	var node = Globals.MAPS[map].instantiate()
+	add_child(node)
+	_tilemap = node.get_node("TileMapLayer")
+	_move_food.call_deferred()
+
+
+func set_color(color: Color) -> void:
+	_line.default_color = color
+	_head.modulate = color
+	_tail.modulate = color
 
 
 func _set_authority(id: int) -> void:
-	$MultiplayerSpawner.set_multiplayer_authority(id)
-	$MultiplayerSynchronizer.set_multiplayer_authority(id)
+	#print("multiplayer = ", multiplayer)
+	#print(multiplayer.get_unique_id(), " is setting authority to ", id)
+	set_multiplayer_authority(id, true)
+	#$MultiplayerSpawner.set_multiplayer_authority(id)
+	#$MultiplayerSynchronizer.set_multiplayer_authority(id)
 
 
 func _ready() -> void:
-	var player = int(str(name))
+	player = int(str(name))
+	await get_tree().process_frame
 	_set_authority(player)
+	#_set_authority.call_deferred(player)
 	if multiplayer.get_unique_id() == player:
 		_initialize()
 	else:
-		print(multiplayer.get_unique_id(), " ", player)
+		#print(multiplayer.get_unique_id(), " ", player)
 		%LabelSpeed.queue_free()
 		_countdown_label.queue_free()
 		set_process(false)
@@ -81,16 +101,22 @@ func _process(delta: float) -> void:
 		%LabelSpeed.set_text("Speed: " + str(current_speed))
 
 
+func _physics_process(_delta: float) -> void:
+	var point_count = _line.get_point_count()
+	if point_count == 0:
+		return
+	_head.position = _line.get_point_position(0)
+	_tail.position = _line.get_point_position(point_count - 1)
+
+
 func _initialize() -> void:
-	current_speed = SNAKE_SPEED
+	current_speed = Globals.settings.snake_speed
 	_line.points = PackedVector2Array([
 		_grid_pos_to_world(_snake_pos),
 		_grid_pos_to_world(_snake_pos + Vector2(-_snake_length, 0)),
 	])
 	for i in range(-1, _snake_length):
 		_snake_cells.append(Vector2i(_snake_pos.x - i, _snake_pos.y))
-	for i in range(_food_count):
-		_create_food()
 
 #func _draw() -> void:
 	#for cell in _snake_cells:
@@ -133,27 +159,24 @@ func _move_snake(delta: float) -> void:
 				),
 				_snake_pos,
 				_snake_pos + _snake_dir * crash_dist,
-				crash_dist * CELL_SIZE / SNAKE_SPEED
+				crash_dist * CELL_SIZE / current_speed
 				)
 			died.emit()
 			modulate = Color.WEB_GRAY
 			return
 		_snake_cells.push_front(new_pos)
-		for food in _foods:
-			if food.position == new_pos:
-				_growing = true
-				_snake_length += 1
-				food_eaten.emit()
-				food.node.queue_free()
-				_foods.erase(food)
-				_create_food()
+		if _food_pos == new_pos:
+			_growing = true
+			_snake_length += 1
+			food_eaten.emit()
+			_move_food()
 	
 	_snake_pos += movement_left * _snake_dir / CELL_SIZE
 	_line.set_point_position(0, Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * CELL_SIZE)
 	_move_progress += movement_left
 	if !_growing:
 		_move_tail(movement_left)
-		
+
 	if _current_reverse_cooldown > 0.0:
 		_current_reverse_cooldown -= min(delta, _current_reverse_cooldown)
 		# Snake blinks when cooldown is about to end
@@ -181,34 +204,36 @@ func _move_tail(amount: float) -> void:
 			_line.set_point_position(num_points - 1, point1 + dir * movement_left)
 			movement_left = 0
 
-func _create_food() -> void:
-	if !FOOD_SCENE_0 or !FOOD_SCENE_0.can_instantiate():
-		return
-	var food = FOOD_SCENE_0.instantiate()
+
+func _move_food() -> void:
 	var pos: Vector2i
+	var attempts = 0
 	
 	# Find a random position for the food
 	while true:
+		attempts = (attempts + 1) % 300
+		# If it takes too long to find a position,
+			# try again in the next frame
+		if attempts == 0:
+			_food_pos = Vector2i(-1, -1)
+			_food.hide()
+			await get_tree().process_frame
 		pos = Vector2i(randi() % GRID_SIZE.x, randi() % GRID_SIZE.y)
 		if (_tilemap.get_cell_tile_data(pos) == null
 			and pos not in _snake_cells
-			and not _foods.any(func(f): return f.position == pos)
 		):
 			break
-	
-	food.position = _grid_pos_to_world(pos)
-	add_child(food, true)
-	_foods.append({
-		type = 0,
-		position = pos,
-		node = food,
-	})
+		#print("move_food(): Position ", pos, " is occupied.")
+	_food_pos = pos
+	_food.show()
+	_food.position = _grid_pos_to_world(pos)
+	#print("Creating food at position ", pos, " (", _food.position, ")")
 
 
 func _grid_pos_to_world(pos: Vector2i) -> Vector2:
 	return Vector2(pos.x + 0.5, pos.y + 0.5) * CELL_SIZE
 
-	
+
 func _is_cell_empty(pos) -> bool:
 	return (
 		pos.x >= 0 and pos.x < GRID_SIZE.x
@@ -218,9 +243,9 @@ func _is_cell_empty(pos) -> bool:
 
 
 func _on_reverse_key_pressed() -> void:
-	if !ALLOW_REVERSE:
+	if !Globals.settings.allow_reverse or _current_reverse_cooldown > 0.0:
 		return
-	_current_reverse_cooldown = REVERSE_COOLDOWN
+	_current_reverse_cooldown = Globals.settings.reverse_cooldown
 	_line.default_color = Color.AQUAMARINE
 	var points = _line.points
 	points.reverse()

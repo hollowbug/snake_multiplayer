@@ -1,7 +1,16 @@
-[gd_scene load_steps=2 format=3 uid="uid://bpwriny2p6yep"]
+[gd_scene load_steps=3 format=3 uid="uid://bpwriny2p6yep"]
 
-[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_l3w7w"]
-size = Vector2(8, 8)
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_ljtmj"]
+size = Vector2(24, 24)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_8b0ke"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
 
 [node name="Food" type="Sprite2D"]
-texture = SubResource("PlaceholderTexture2D_l3w7w")
+z_index = 1
+texture = SubResource("PlaceholderTexture2D_ljtmj")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_8b0ke")

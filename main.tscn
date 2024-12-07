@@ -1,14 +1,16 @@
-[gd_scene load_steps=4 format=3 uid="uid://dgfjd0ev67hyy"]
+[gd_scene load_steps=6 format=3 uid="uid://dgfjd0ev67hyy"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_dvxxn"]
+[ext_resource type="PackedScene" uid="uid://buuap6ob6iiyb" path="res://map_card.tscn" id="2_sfejv"]
+[ext_resource type="PackedScene" uid="uid://dtwt6i4qa4ue7" path="res://setting.tscn" id="3_y3mr0"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_twjuu"]
 properties/0/path = NodePath("CanvasLayer/Lobby:visible")
 properties/0/spawn = true
-properties/0/replication_mode = 1
+properties/0/replication_mode = 2
 properties/1/path = NodePath(".:game_state")
 properties/1/spawn = true
-properties/1/replication_mode = 1
+properties/1/replication_mode = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lgwjk"]
 content_margin_top = 20.0
@@ -18,6 +20,7 @@ bg_color = Color(0, 0, 0, 0.313726)
 script = ExtResource("1_dvxxn")
 
 [node name="Players" type="Node2D" parent="."]
+position = Vector2(60, 50)
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://game.tscn")
@@ -30,6 +33,7 @@ replication_config = SubResource("SceneReplicationConfig_twjuu")
 
 [node name="MainMenu" type="CenterContainer" parent="CanvasLayer"]
 unique_name_in_owner = true
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -41,6 +45,7 @@ layout_mode = 2
 theme_override_constants/separation = 30
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 size_flags_vertical = 3
 alignment = 1
@@ -51,8 +56,8 @@ text = "NAME:"
 
 [node name="PlayerName" type="TextEdit" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer2"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Player"
 scroll_fit_content_height = true
 
@@ -61,11 +66,12 @@ layout_mode = 2
 theme_override_constants/separation = 40
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer"]
+visible = false
 layout_mode = 2
 alignment = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer"]
-custom_minimum_size = Vector2(200, 0)
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 
 [node name="Label" type="Label" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer/HBoxContainer"]
@@ -87,7 +93,7 @@ text = "Create Game"
 layout_mode = 2
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]
-custom_minimum_size = Vector2(200, 0)
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 
 [node name="Label" type="Label" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
@@ -98,7 +104,8 @@ text = "IP:"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "95.216.10.105"
+text = "ec2-16-171-249-118.eu-north-1.compute.amazonaws.com"
+placeholder_text = "12.34.56.78"
 scroll_fit_content_height = true
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2"]
@@ -121,7 +128,6 @@ text = "Join Game"
 
 [node name="Lobby" type="MarginContainer" parent="CanvasLayer"]
 unique_name_in_owner = true
-visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -132,38 +138,120 @@ theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/Lobby"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Lobby"]
+layout_mode = 2
+theme_override_constants/separation = 64
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="CanvasLayer/Lobby/HBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="MapCard" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2" instance=ExtResource("2_sfejv")]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/Lobby/CenterContainer"]
-layout_mode = 2
+[node name="SubViewportContainer" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard/VBoxContainer" index="0"]
+custom_minimum_size = Vector2(640, 640)
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer"]
-layout_mode = 2
+[node name="SelectedMap" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard/VBoxContainer/SubViewportContainer" index="0"]
+size = Vector2i(640, 640)
 
-[node name="Label" type="Label" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer"]
+[node name="Label" type="Label" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2"]
+layout_mode = 2
+text = "Map"
+horizontal_alignment = 1
+
+[node name="Button" type="Button" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2" groups=["host_only"]]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Change"
+
+[node name="SettingContainer" type="FlowContainer" parent="CanvasLayer/Lobby/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/h_separation = 40
+theme_override_constants/v_separation = 40
+
+[node name="Setting" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer" instance=ExtResource("3_y3mr0")]
+layout_mode = 2
+min_value = 50
+max_value = 400
+step = 25
+
+[node name="Setting2" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer" instance=ExtResource("3_y3mr0")]
+layout_mode = 2
+tooltip_text = "How much a player's speed increases when an opponent eats food. Divided by the number of living opponents."
+max_value = 20
+step = 2
+
+[node name="Label" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting2" index="0"]
+text = "Speed increase"
+
+[node name="Value" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting2" index="2"]
+text = "2"
+
+[node name="Setting3" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer" instance=ExtResource("3_y3mr0")]
+layout_mode = 2
+tooltip_text = "Press Shift to reverse your snake's direction"
+type = "bool"
+
+[node name="Label" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting3" index="0"]
+text = "Allow reverse"
+
+[node name="Value" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting3" index="2"]
+text = "Yes"
+
+[node name="Setting4" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer" instance=ExtResource("3_y3mr0")]
+layout_mode = 2
+units = "Seconds"
+min_value = 10
+max_value = 120
+step = 10
+
+[node name="Label" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting4" index="0"]
+text = "Reverse cooldown"
+
+[node name="Value" parent="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting4" index="2"]
+text = "30s"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Lobby/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 10
+
+[node name="Label" type="Label" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer"]
 layout_mode = 2
 text = "Players"
 horizontal_alignment = 1
 
-[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer/PanelContainer"]
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer/PanelContainer"]
 _spawnable_scenes = PackedStringArray("res://player_name.tscn")
 spawn_path = NodePath("../PlayerList")
 
-[node name="PlayerList" type="VBoxContainer" parent="CanvasLayer/Lobby/CenterContainer/HBoxContainer/VBoxContainer/PanelContainer"]
+[node name="PlayerList" type="VBoxContainer" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer/PanelContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ButtonContinue" type="Button" parent="CanvasLayer"]
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/Lobby/HBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonContinue" type="Button" parent="CanvasLayer" groups=["host_only"]]
 unique_name_in_owner = true
-visible = false
-offset_left = 743.0
-offset_top = 438.0
-offset_right = 844.0
-offset_bottom = 460.0
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -276.0
+offset_top = -114.0
+offset_right = -50.0
+offset_bottom = -53.0
+grow_horizontal = 0
+grow_vertical = 0
 size_flags_horizontal = 8
 size_flags_vertical = 8
 text = "Start Game"
@@ -188,4 +276,14 @@ text = "YOU WON!"
 
 [connection signal="pressed" from="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer/Button" to="." method="_on_button_create_game_pressed"]
 [connection signal="pressed" from="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/Button2" to="." method="_on_button_join_game_pressed"]
+[connection signal="pressed" from="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/Button" to="." method="_on_button_change_map_pressed"]
+[connection signal="value_changed" from="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting" to="." method="_on_setting_value_changed" binds= ["snake_speed"]]
+[connection signal="value_changed" from="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting2" to="." method="_on_setting_value_changed" binds= ["speed_increase"]]
+[connection signal="value_changed" from="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting3" to="." method="_on_setting_value_changed" binds= ["allow_reverse"]]
+[connection signal="value_changed" from="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting4" to="." method="_on_setting_value_changed" binds= ["reverse_cooldown"]]
 [connection signal="pressed" from="CanvasLayer/ButtonContinue" to="." method="_on_button_continue_pressed"]
+
+[editable path="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard"]
+[editable path="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting2"]
+[editable path="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting3"]
+[editable path="CanvasLayer/Lobby/HBoxContainer/SettingContainer/Setting4"]
