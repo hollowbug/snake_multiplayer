@@ -6,7 +6,7 @@ const PLAYER_NAME_LABEL = preload("res://player_name.tscn")
 #const PLAYER = preload("res://player.tscn")
 const GAME = preload("res://game.tscn")
 const GAME_SIZE := Vector2(960, 960)
-const OPPONENT_GAME_SCALE = Vector2(0.3, 0.3)
+const MAX_OPPONENT_GAME_SCALE = 0.3
 const OPPONENT_GAME_X := 1100
 const SHARED_GAME_SIZE := Vector2(1280, 960)
 const SHARED_GAME_X := 580
@@ -55,12 +55,25 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		if game_state == "menu":
-			get_tree().quit()
-		else:
-			multiplayer.multiplayer_peer.close()
-			_return_to_menu()
+	if event is InputEventKey and event.pressed:
+		match event.keycode:
+			
+			KEY_ESCAPE:
+				if game_state == "menu":
+					get_tree().quit()
+				else:
+					multiplayer.multiplayer_peer.close()
+					_return_to_menu()
+			
+			KEY_F1: # Add dummy player for debug
+				print("F1 pressed")
+				if _is_host and OS.has_feature("editor"):
+					print("Adding dummy player...")
+					var id = randi() % 999999
+					#var color = Color(randf(), randf(), randf())
+					_register_player.rpc_id(1, id, "Bot")
+					#_players[id].color = color
+					#_players[id].color_picker.color = color
 
 
 func _create_server(port: int) -> void:
@@ -118,7 +131,13 @@ func _register_player(id: int, name_: String):
 	if multiplayer.get_unique_id() != 1:
 		return
 	print("%s joined" % name_)
-	_players[id] = { name = name_, color = Color.WHITE, alive = false, host = false }
+	_players[id] = {
+		name = name_,
+		color = Color.WHITE,
+		wins = 0,
+		alive = false,
+		host = false,
+	}
 	if _players.keys().size() == 1:
 		_set_host.rpc_id(id)
 		_players[id].host = true
@@ -130,6 +149,7 @@ func _register_player(id: int, name_: String):
 	var picker = node.get_node("%ColorPickerButton")
 	_players[id].player_list_node = node
 	_players[id].color_picker = picker
+	_update_selected_map.rpc_id(id, _selected_map)
 
 
 func _on_client_disconnected(id: int) -> void:
@@ -146,7 +166,7 @@ func _on_button_create_game_pressed() -> void:
 
 
 func _on_button_join_game_pressed() -> void:
-	_player_name = %PlayerName.text.left(20)
+	_player_name = "%s" % %PlayerName.text
 	_join_server(%JoinGameIP.text, int(%JoinGamePort.text))
 
 
@@ -195,8 +215,9 @@ func _on_game_started(players: Dictionary, selected_map: int,
 	
 	# Position opponents
 	var num = $Players.get_child_count()
-	var gap = GAME_SIZE.y / num
-	var offset = 0.0
+	var opp_scale = min(MAX_OPPONENT_GAME_SCALE, 0.9 / (num - 1))
+	var gap = GAME_SIZE.y / (num - 1)
+	var offset = 0
 	for child in $Players.get_children():
 		#print(multiplayer.get_unique_id(), " ", child.name)
 		var id = int(str(child.name))
@@ -214,18 +235,18 @@ func _on_game_started(players: Dictionary, selected_map: int,
 		else: # Opponent
 			child.set_map.call_deferred(selected_map, snake_id, !is_shared_map)
 			if !is_shared_map:
-				child.scale = OPPONENT_GAME_SCALE
-				var y = offset * gap
-				child.position = Vector2(OPPONENT_GAME_X, y)
+				child.scale = Vector2(opp_scale, opp_scale)
+				child.position = Vector2(OPPONENT_GAME_X, offset)
 				var box = HBoxContainer.new()
 				box.alignment = BoxContainer.ALIGNMENT_CENTER
-				box.custom_minimum_size.x = GAME_SIZE.x * OPPONENT_GAME_SCALE.x
-				box.position = Vector2(OPPONENT_GAME_X, y + GAME_SIZE.y * OPPONENT_GAME_SCALE.y)
+				box.custom_minimum_size.x = GAME_SIZE.x * opp_scale
+				box.position = Vector2(OPPONENT_GAME_X + GAME_SIZE.x * opp_scale,
+						offset + GAME_SIZE.y * opp_scale * 0.5 - 24)
 				$Players.add_child(box)
 				var label = Label.new()
 				label.set_text(players[id].name)
 				box.add_child(label)
-				offset += 1.0
+				offset += gap
 
 
 func _on_food_eaten() -> void:
@@ -237,7 +258,7 @@ func _on_player_ate_food() -> void:
 	var player = multiplayer.get_remote_sender_id()
 	for id in _players:
 		if id != player and _players[id].alive:
-			_increase_speed.rpc_id(id, Globals.settings.speed_increase / (_snakes_alive - 1))
+			_increase_speed.rpc_id(id, float(Globals.settings.speed_increase) / (_snakes_alive - 1))
 
 
 @rpc("reliable")
@@ -314,6 +335,9 @@ func _check_winner() -> void:
 	for id in _players:
 		if _players[id].alive:
 			_on_game_won.rpc_id(id)
+			_players[id].wins += 1
+			var wins_label = _players[id].player_list_node.get_node("%LabelWins")
+			wins_label.set_text("Wins: %d" % _players[id].wins)
 
 
 @rpc("reliable")

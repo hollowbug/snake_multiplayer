@@ -80,16 +80,17 @@ func die() -> void:
 		print("game.gd:die() Error: Condition \"paused == true\" is true")
 		return
 	paused = true
-	var crash_dist = 0.3 - _move_progress
-	var tween = create_tween()
-	tween.tween_method((func(pos):
-		_line.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size)
-		),
-		_snake_pos,
-		_snake_pos + _snake_dir * crash_dist,
-		crash_dist * cell_size / current_speed
-		)
-	await tween.finished
+	if _move_progress < 0.3 * cell_size:
+		var crash_dist = 0.3 - _move_progress / cell_size
+		var tween = create_tween()
+		tween.tween_method((func(pos):
+			_line.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size)
+			),
+			_snake_pos,
+			_snake_pos + _snake_dir * crash_dist,
+			crash_dist * cell_size / current_speed
+			)
+		await tween.finished
 	died.emit()
 	modulate = Color.WEB_GRAY
 
@@ -129,7 +130,7 @@ func _process(delta: float) -> void:
 			paused = false
 	else:
 		_move_snake(delta)
-		%LabelSpeed.set_text("Speed: " + str(current_speed))
+		%LabelSpeed.set_text("Speed: %.1f" % current_speed)
 
 
 func _physics_process(_delta: float) -> void:
@@ -143,6 +144,7 @@ func _physics_process(_delta: float) -> void:
 
 func _initialize() -> void:
 	current_speed = Globals.settings.snake_speed
+	await get_tree().create_timer(1).timeout
 	_move_food.call_deferred()
 
 #func _draw() -> void:
@@ -236,7 +238,7 @@ func _move_food() -> void:
 			_food.hide()
 			await get_tree().process_frame
 		pos = Vector2i(randi() % grid_size.x, randi() % grid_size.y)
-		if (_tilemap.get_cell_tile_data(pos) == null
+		if ((!_tilemap or _tilemap.get_cell_tile_data(pos) == null)
 			and pos not in _snake_cells
 		):
 			break

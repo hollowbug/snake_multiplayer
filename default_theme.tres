@@ -49,3 +49,4 @@ Button/styles/hover = SubResource("StyleBoxFlat_hwf3l")
 Button/styles/normal = SubResource("StyleBoxFlat_6gbki")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_mkqtf")
 TextEdit/colors/background_color = Color(1, 1, 1, 0.0862745)
+TooltipLabel/font_sizes/font_size = 24

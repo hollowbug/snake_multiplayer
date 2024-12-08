@@ -3,15 +3,17 @@
 [ext_resource type="Texture2D" uid="uid://bxiktrjforn4m" path="res://textures/100_1174_seamless.jpg" id="1_641ir"]
 [ext_resource type="Script" path="res://map.gd" id="2_74aj5"]
 [ext_resource type="Shader" path="res://walls.gdshader" id="2_n42nm"]
-[ext_resource type="Texture2D" uid="uid://i8ob4xmd333y" path="res://textures/placeholder_texture_48.tres" id="3_e61im"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_li3wm"]
 shader = ExtResource("2_n42nm")
 shader_parameter/texture_size = Vector2(1024, 1024)
 shader_parameter/large_texture = ExtResource("1_641ir")
 
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_b8mfe"]
+size = Vector2(48, 48)
+
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_oeefk"]
-texture = ExtResource("3_e61im")
+texture = SubResource("PlaceholderTexture2D_b8mfe")
 texture_region_size = Vector2i(48, 48)
 0:0/0 = 0
 

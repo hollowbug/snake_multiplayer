@@ -33,11 +33,11 @@ antialiased = true
 texture = ExtResource("2_7eanr")
 
 [node name="Sprite2D" type="Sprite2D" parent="Head"]
-position = Vector2(8, 8)
+position = Vector2(8, 10)
 texture = ExtResource("3_f7cbm")
 
 [node name="Sprite2D2" type="Sprite2D" parent="Head"]
-position = Vector2(8, -8)
+position = Vector2(8, -10)
 texture = ExtResource("3_f7cbm")
 
 [node name="Tail" type="Sprite2D" parent="."]

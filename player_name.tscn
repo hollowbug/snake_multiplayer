@@ -9,6 +9,9 @@ properties/0/replication_mode = 2
 properties/1/path = NodePath("../PanelContainer/ColorPickerButton:color")
 properties/1/spawn = true
 properties/1/replication_mode = 2
+properties/2/path = NodePath("../PanelContainer2/LabelWins:text")
+properties/2/spawn = true
+properties/2/replication_mode = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wrd7c"]
 content_margin_left = 6.0
@@ -21,6 +24,7 @@ corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [node name="PlayerName" type="HBoxContainer"]
+custom_minimum_size = Vector2(400, 0)
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("1_sec6i")
@@ -28,11 +32,6 @@ script = ExtResource("1_sec6i")
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 root_path = NodePath("../Label")
 replication_config = SubResource("SceneReplicationConfig_sdtc3")
-
-[node name="Label" type="Label" parent="."]
-layout_mode = 2
-text = "Player0"
-horizontal_alignment = 1
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
 layout_mode = 2
@@ -44,3 +43,19 @@ custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 color = Color(1, 1, 1, 1)
 edit_alpha = false
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Player"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="PanelContainer2" type="PanelContainer" parent="."]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_wrd7c")
+
+[node name="LabelWins" type="Label" parent="PanelContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Wins: 0"
