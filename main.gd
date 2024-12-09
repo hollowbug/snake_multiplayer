@@ -12,10 +12,11 @@ const SHARED_GAME_SIZE := Vector2(1280, 960)
 const SHARED_GAME_X := 580
 
 # Host only properties
-var _players := {}
-var _snakes_alive : int
-var _map_selector : CanvasLayer
-var _selected_map := 0
+var 		_players := {}
+var    _snakes_alive : int
+var    _selected_map := 0
+var	  _is_shared_map := false
+var _shared_food_pos : Vector2i
 @onready var _setting_nodes := {
 	snake_speed = %SettingContainer/Setting,
 	speed_increase = %SettingContainer/Setting2,
@@ -28,23 +29,22 @@ var game_state = "menu"
 var _settings: Dictionary = Globals.settings
 
 # Client properties
-var _player_name := "Player"
-var _is_host := false
-var _game : Node2D
+var 	 _player_name := "Player"
+var 		 _is_host := false
+var 	_map_selector : CanvasLayer
+var 			_game : Node2D
 @onready var _player_list = %PlayerList
 @onready var _button_continue = %ButtonContinue
 
 func _ready() -> void:
 	if OS.has_feature("dedicated_server"):
 		var port = OS.get_environment("PORT")
-		if port:
-			_create_server(int(port))
-		else:
-			_create_server(20527)
+		_create_server(int(port) if port else 20527)
 	
 	else: # Client
 		if OS.has_feature("editor"):
-			%JoinGameIP.set_text("192.168.112.119")
+			#%JoinGameIP.set_text("192.168.112.119")
+			%JoinGameIP.set_text("127.0.0.1")
 		multiplayer.connected_to_server.connect(_on_connected)
 		multiplayer.server_disconnected.connect(_on_server_disconnected)
 		%MainMenu.show()
@@ -66,7 +66,6 @@ func _input(event: InputEvent) -> void:
 					_return_to_menu()
 			
 			KEY_F1: # Add dummy player for debug
-				print("F1 pressed")
 				if _is_host and OS.has_feature("editor"):
 					print("Adding dummy player...")
 					var id = randi() % 999999
@@ -182,20 +181,20 @@ func _host_start_game() -> void:
 	game_state = "game"
 	%Lobby.hide()
 	var players = _players.keys()
-	var is_shared_map = (players.size() > 1
+	_is_shared_map = (players.size() > 1
 			and Globals.MAPS[_selected_map].type == "large")
 	_snakes_alive = players.size()
 	
 	for player in _players:
 		_players[player].alive = true
+		_players[player].ready = false
 		var game = GAME.instantiate()
 		game.name = str(player)
-		#game.player = player
 		$Players.add_child(game, true)
-		print("is_shared_map = ", is_shared_map)
+		#print("is_shared_map = ", is_shared_map)
 	for i in range(players.size()):
-		var snake_idx = i if is_shared_map else 0
-		_on_game_started.rpc_id(players[i], _players, _selected_map, snake_idx, _settings)
+		var snake_idx = i if _is_shared_map else 0
+		_on_game_started.rpc_id(players[i], _players, _selected_map, _is_shared_map, snake_idx, _settings)
 
 
 @rpc("any_peer", "reliable")
@@ -209,7 +208,7 @@ func _host_return_to_lobby() -> void:
 
 @rpc("reliable")
 func _on_game_started(players: Dictionary, selected_map: int,
-		snake_id: int, settings: Dictionary) -> void:
+		is_shared_map: bool, snake_id: int, settings: Dictionary) -> void:
 	Globals.settings = settings
 	_button_continue.hide()
 	
@@ -221,11 +220,10 @@ func _on_game_started(players: Dictionary, selected_map: int,
 	for child in $Players.get_children():
 		#print(multiplayer.get_unique_id(), " ", child.name)
 		var id = int(str(child.name))
-		var is_shared_map = Globals.MAPS[selected_map].type == "large"
 		child.set_color(players[id].color)
 		
 		if id == multiplayer.get_unique_id(): # Self
-			child.set_map.call_deferred(selected_map, snake_id)
+			child.set_map.call_deferred(selected_map, snake_id, is_shared_map)
 			child.food_eaten.connect(_on_food_eaten)
 			child.died.connect(_on_snake_died)
 			if is_shared_map:
@@ -233,7 +231,7 @@ func _on_game_started(players: Dictionary, selected_map: int,
 			_game = child
 		
 		else: # Opponent
-			child.set_map.call_deferred(selected_map, snake_id, !is_shared_map)
+			child.set_map.call_deferred(selected_map, snake_id, is_shared_map, !is_shared_map)
 			if !is_shared_map:
 				child.scale = Vector2(opp_scale, opp_scale)
 				child.position = Vector2(OPPONENT_GAME_X, offset)

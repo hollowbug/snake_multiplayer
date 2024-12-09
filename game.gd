@@ -18,6 +18,7 @@ enum GAME_STATE { PLAYING, VIEWING_SUMMARY, VIEWING_UPGRADES }
 var paused			:= true
 var current_speed 	: float
 
+var _is_shared_map	: bool
 var _input_queue 	:= []
 var _snake_length 	:= 4
 var _current_reverse_cooldown := 0.0
@@ -42,8 +43,9 @@ var _tilemap 		: TileMapLayer
 		#_set_authority.call_deferred(player)
 
 
-func set_map(map: int, snake_id: int = 0, map_visible: bool = true) -> void:
+func set_map(map: int, snake_id: int = 0, is_shared_map: bool = false, map_visible: bool = true) -> void:
 	#print(multiplayer.get_unique_id(), " is loading map ", map)
+	_is_shared_map = is_shared_map
 	var node = Globals.MAPS[map].scene.instantiate()
 	if map_visible:
 		add_child(node)
@@ -68,6 +70,11 @@ func set_color(color: Color) -> void:
 	_line.default_color = color
 	_head.self_modulate = color
 	_tail.modulate = color
+
+
+func move_shared_food(pos: Vector2i) -> void:
+	_food.show()
+	_food.position = _grid_pos_to_world(pos)
 
 
 func on_food_eaten() -> void:
@@ -142,10 +149,13 @@ func _physics_process(_delta: float) -> void:
 	_head.rotation = _line.get_point_position(1).angle_to_point(pos0)
 	_tail.position = _line.get_point_position(point_count - 1)
 
+
 func _initialize() -> void:
 	current_speed = Globals.settings.snake_speed
-	await get_tree().create_timer(1).timeout
-	_move_food.call_deferred()
+	_food.hide()
+	if _is_shared_map:
+		await get_tree().create_timer(1).timeout
+		_move_food.call_deferred()
 
 #func _draw() -> void:
 	#for cell in _snake_cells:
