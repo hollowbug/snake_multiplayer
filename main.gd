@@ -16,6 +16,8 @@ var 		_players := {}
 var    _snakes_alive : int
 var    _selected_map := 0
 var	  _is_shared_map := false
+var 		_tilemap : TileMapLayer
+var 	  _grid_size : Vector2i
 var _shared_food_pos : Vector2i
 @onready var _setting_nodes := {
 	snake_speed = %SettingContainer/Setting,
@@ -181,9 +183,18 @@ func _host_start_game() -> void:
 	game_state = "game"
 	%Lobby.hide()
 	var players = _players.keys()
+	_snakes_alive = players.size()
 	_is_shared_map = (players.size() > 1
 			and Globals.MAPS[_selected_map].type == "large")
-	_snakes_alive = players.size()
+	
+	var map
+	if _is_shared_map:
+		map = Globals.MAPS[_selected_map].scene.instantiate()
+		$Players.add_child(map)
+		_tilemap = map.get_node("TileMapLayer")
+		_grid_size = map.grid_size
+		for i in range(players.size()):
+			_players[players[i]].snake_cells = map.get_snake_cells(i)
 	
 	for player in _players:
 		_players[player].alive = true
@@ -195,6 +206,9 @@ func _host_start_game() -> void:
 	for i in range(players.size()):
 		var snake_idx = i if _is_shared_map else 0
 		_on_game_started.rpc_id(players[i], _players, _selected_map, _is_shared_map, snake_idx, _settings)
+	if _is_shared_map:
+		await get_tree().create_timer(0.2).timeout
+		_host_move_shared_food()
 
 
 @rpc("any_peer", "reliable")
@@ -247,23 +261,6 @@ func _on_game_started(players: Dictionary, selected_map: int,
 				offset += gap
 
 
-func _on_food_eaten() -> void:
-	_on_player_ate_food.rpc_id(1)
-
-
-@rpc("any_peer", "reliable")
-func _on_player_ate_food() -> void:
-	var player = multiplayer.get_remote_sender_id()
-	for id in _players:
-		if id != player and _players[id].alive:
-			_increase_speed.rpc_id(id, float(Globals.settings.speed_increase) / (_snakes_alive - 1))
-
-
-@rpc("reliable")
-func _increase_speed(amount: float) -> void:
-	_game.current_speed += amount
-
-
 @rpc("reliable")
 func _set_host(host: bool = true) -> void:
 	_is_host = host
@@ -293,6 +290,25 @@ func _update_selected_map(map: int) -> void:
 	%MapCard.set_map(map)
 
 
+func _on_food_eaten() -> void:
+	_on_player_ate_food.rpc_id(1)
+
+
+@rpc("any_peer", "reliable")
+func _on_player_ate_food() -> void:
+	var player = multiplayer.get_remote_sender_id()
+	if _snakes_alive == 1:
+			_increase_speed.rpc_id(player, Globals.settings.speed_increase)
+	else: for id in _players:
+		if id != player and _players[id].alive:
+			_increase_speed.rpc_id(id, float(Globals.settings.speed_increase) / (_snakes_alive - 1))
+
+
+@rpc("reliable")
+func _increase_speed(amount: float) -> void:
+	_game.current_speed += amount
+
+
 func _on_game_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) -> void:
 	_on_player_moving_to.rpc_id(1, pos, cells, player)
 
@@ -305,6 +321,28 @@ func _on_player_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) ->
 		if pos in _players[id].snake_cells:
 			_die.rpc_id(player)
 	_players[player].snake_cells = cells
+	if _is_shared_map and _shared_food_pos == pos:
+		_grow_snake.rpc_id(player)
+		_host_move_shared_food()
+
+
+func _host_move_shared_food() -> void:
+	var snake_cells = []
+	for player in _players:
+		snake_cells.append_array(_players[player].snake_cells)
+	_shared_food_pos = await Game.move_food(_tilemap, _grid_size, snake_cells)
+	print("Host is moving food to ", _shared_food_pos, "...")
+	_move_shared_food.rpc(_shared_food_pos)
+
+
+@rpc("reliable")
+func _move_shared_food(pos: Vector2i) -> void:
+	_game.move_shared_food(pos)
+
+
+@rpc("reliable")
+func _grow_snake() -> void:
+	_game.grow_snake()
 
 
 @rpc("reliable")

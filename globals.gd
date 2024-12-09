@@ -24,3 +24,7 @@ var settings = {
 	allow_reverse = true,
 	reverse_cooldown = 30,
 }
+
+
+func wait_for_next_frame() -> void:
+	await get_tree().process_frame

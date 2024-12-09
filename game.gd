@@ -43,6 +43,23 @@ var _tilemap 		: TileMapLayer
 		#_set_authority.call_deferred(player)
 
 
+static func move_food(tilemap: TileMapLayer, grid_size_: Vector2i, snake_cells: Array) -> Vector2i:
+	var pos: Vector2i
+	var attempts = 0
+	while true:
+		attempts = (attempts + 1) % 300
+		# If it takes too long to find a position,
+			# try again in the next frame
+		if attempts == 0:
+			await Globals.wait_for_next_frame()
+		pos = Vector2i(randi() % grid_size_.x, randi() % grid_size_.y)
+		if ((!tilemap or tilemap.get_cell_tile_data(pos) == null)
+			and pos not in snake_cells
+		):
+			break
+	return pos
+
+
 func set_map(map: int, snake_id: int = 0, is_shared_map: bool = false, map_visible: bool = true) -> void:
 	#print(multiplayer.get_unique_id(), " is loading map ", map)
 	_is_shared_map = is_shared_map
@@ -60,26 +77,36 @@ func set_map(map: int, snake_id: int = 0, is_shared_map: bool = false, map_visib
 	_snake_dir = node.snake_dirs[snake_id]
 	_line.points = PackedVector2Array([
 		_grid_pos_to_world(_snake_pos),
-		_grid_pos_to_world(_snake_pos + -_snake_dir * _snake_length),
+		_grid_pos_to_world(_snake_pos + -_snake_dir * node.snake_length),
 	])
-	for i in range(-1, _snake_length):
-		_snake_cells.append(Vector2i(_snake_pos + i * -_snake_dir))
+	_snake_cells = node.get_snake_cells(snake_id)
+	_snake_length = node.snake_length
+	
+	if !_is_shared_map:
+		await get_tree().create_timer(0.2).timeout
+		_move_food()
 
 
 func set_color(color: Color) -> void:
 	_line.default_color = color
 	_head.self_modulate = color
-	_tail.modulate = color
+	_tail.self_modulate = color
 
 
 func move_shared_food(pos: Vector2i) -> void:
+	print(multiplayer.get_unique_id(), " is moving shared food to ", pos, "...")
 	_food.show()
 	_food.position = _grid_pos_to_world(pos)
 
 
-func on_food_eaten() -> void:
+func grow_snake() -> void:
 	_growing = true
 	_snake_length += 1
+	var point_count = _line.get_point_count()
+	var last_point = _line.get_point_position(point_count - 1)
+	var second_to_last = _line.get_point_position(point_count - 2)
+	var dir = second_to_last.direction_to(last_point)
+	_line.set_point_position(point_count - 1, last_point + dir * _move_progress)
 
 
 func die() -> void:
@@ -107,9 +134,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	set_multiplayer_authority(player, true)
 	if multiplayer.get_unique_id() == player:
-		_initialize()
+		current_speed = Globals.settings.snake_speed
+		_food.hide()
 	else:
-		#print(multiplayer.get_unique_id(), " ", player)
 		%LabelSpeed.queue_free()
 		_countdown_label.queue_free()
 		set_process(false)
@@ -149,14 +176,6 @@ func _physics_process(_delta: float) -> void:
 	_head.rotation = _line.get_point_position(1).angle_to_point(pos0)
 	_tail.position = _line.get_point_position(point_count - 1)
 
-
-func _initialize() -> void:
-	current_speed = Globals.settings.snake_speed
-	_food.hide()
-	if _is_shared_map:
-		await get_tree().create_timer(1).timeout
-		_move_food.call_deferred()
-
 #func _draw() -> void:
 	#for cell in _snake_cells:
 		#var rect = Rect2(cell * cell_size, Vector2(cell_size, cell_size))
@@ -193,9 +212,9 @@ func _move_snake(delta: float) -> void:
 			die()
 			return
 		_snake_cells.push_front(new_pos)
-		moving_to.emit(_snake_pos, _snake_cells)
+		moving_to.emit(new_pos, _snake_cells)
 		if _food_pos == new_pos:
-			on_food_eaten()
+			grow_snake()
 			food_eaten.emit()
 			_move_food()
 	
@@ -235,28 +254,11 @@ func _move_tail(amount: float) -> void:
 
 
 func _move_food() -> void:
-	var pos: Vector2i
-	var attempts = 0
-	
-	# Find a random position for the food
-	while true:
-		attempts = (attempts + 1) % 300
-		# If it takes too long to find a position,
-			# try again in the next frame
-		if attempts == 0:
-			_food_pos = Vector2i(-1, -1)
-			_food.hide()
-			await get_tree().process_frame
-		pos = Vector2i(randi() % grid_size.x, randi() % grid_size.y)
-		if ((!_tilemap or _tilemap.get_cell_tile_data(pos) == null)
-			and pos not in _snake_cells
-		):
-			break
-		#print("move_food(): Position ", pos, " is occupied.")
+	var pos = await move_food(_tilemap, grid_size, _snake_cells)
 	_food_pos = pos
 	_food.show()
 	_food.position = _grid_pos_to_world(pos)
-	#print("Creating food at position ", pos, " (", _food.position, ")")
+	#print("Moving food to position ", pos, " (", _food.position, ")")
 
 
 func _grid_pos_to_world(pos: Vector2i) -> Vector2:
