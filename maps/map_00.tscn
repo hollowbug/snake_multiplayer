@@ -1,8 +1,17 @@
-[gd_scene load_steps=8 format=4 uid="uid://g8ly1qobk6xs"]
+[gd_scene load_steps=10 format=4 uid="uid://g8ly1qobk6xs"]
 
 [ext_resource type="Texture2D" uid="uid://bxiktrjforn4m" path="res://textures/100_1174_seamless.jpg" id="1_641ir"]
 [ext_resource type="Script" path="res://map.gd" id="2_74aj5"]
 [ext_resource type="Shader" path="res://walls.gdshader" id="2_n42nm"]
+[ext_resource type="Shader" path="res://outline.gdshader" id="3_o66gr"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_favoj"]
+shader = ExtResource("3_o66gr")
+shader_parameter/color = Color(1, 1, 1, 1)
+shader_parameter/width = 4.0
+shader_parameter/pattern = 2
+shader_parameter/inside = true
+shader_parameter/add_margins = false
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_li3wm"]
 shader = ExtResource("2_n42nm")
@@ -21,7 +30,7 @@ texture_region_size = Vector2i(48, 48)
 tile_size = Vector2i(48, 48)
 sources/1 = SubResource("TileSetAtlasSource_oeefk")
 
-[node name="Map00" type="TextureRect"]
+[node name="Map" type="TextureRect"]
 modulate = Color(0.359069, 0.359069, 0.359069, 1)
 z_index = -50
 offset_right = 960.0
@@ -30,10 +39,26 @@ texture = ExtResource("1_641ir")
 expand_mode = 1
 stretch_mode = 1
 script = ExtResource("2_74aj5")
+snake_length = 5
 snakes = PackedVector2Array(10, 10)
 snake_dirs = PackedVector2Array(1, 0)
 
-[node name="TileMapLayer" type="TileMapLayer" parent="."]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+material = SubResource("ShaderMaterial_favoj")
+custom_minimum_size = Vector2(960, 960)
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(960, 960)
+render_target_update_mode = 4
+
+[node name="TileMapLayer" type="TileMapLayer" parent="SubViewportContainer/SubViewport"]
+unique_name_in_owner = true
 material = SubResource("ShaderMaterial_li3wm")
 tile_map_data = PackedByteArray("AAAAAAEAAQAAAAAAAAAAAAIAAQAAAAAAAAAAAAMAAQAAAAAAAAAAAAQAAQAAAAAAAAAAAAUAAQAAAAAAAAAAAAYAAQAAAAAAAAAAAAcAAQAAAAAAAAAAAAgAAQAAAAAAAAAAAAkAAQAAAAAAAAAAAAoAAQAAAAAAAAAAAAsAAQAAAAAAAAAAAAwAAQAAAAAAAAAAAA0AAQAAAAAAAAAAAA4AAQAAAAAAAAAAAA8AAQAAAAAAAAAAABAAAQAAAAAAAAAAABEAAQAAAAAAAAAAABIAAQAAAAAAAAAAABMAAQAAAAAAAAATAAAAAQAAAAAAAAASAAAAAQAAAAAAAAARAAAAAQAAAAAAAAAQAAAAAQAAAAAAAAAPAAAAAQAAAAAAAAAOAAAAAQAAAAAAAAANAAAAAQAAAAAAAAAMAAAAAQAAAAAAAAALAAAAAQAAAAAAAAAKAAAAAQAAAAAAAAAJAAAAAQAAAAAAAAAIAAAAAQAAAAAAAAAHAAAAAQAAAAAAAAAGAAAAAQAAAAAAAAAFAAAAAQAAAAAAAAAEAAAAAQAAAAAAAAADAAAAAQAAAAAAAAACAAAAAQAAAAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAAAAAATABMAAQAAAAAAAAATABIAAQAAAAAAAAATABEAAQAAAAAAAAATABAAAQAAAAAAAAATAA8AAQAAAAAAAAATAA4AAQAAAAAAAAATAA0AAQAAAAAAAAATAAwAAQAAAAAAAAATAAsAAQAAAAAAAAATAAoAAQAAAAAAAAATAAkAAQAAAAAAAAATAAgAAQAAAAAAAAATAAcAAQAAAAAAAAATAAYAAQAAAAAAAAATAAUAAQAAAAAAAAATAAQAAQAAAAAAAAATAAMAAQAAAAAAAAATAAIAAQAAAAAAAAATAAEAAQAAAAAAAAASABMAAQAAAAAAAAARABMAAQAAAAAAAAAQABMAAQAAAAAAAAAPABMAAQAAAAAAAAAOABMAAQAAAAAAAAANABMAAQAAAAAAAAAMABMAAQAAAAAAAAALABMAAQAAAAAAAAAKABMAAQAAAAAAAAAJABMAAQAAAAAAAAAIABMAAQAAAAAAAAAHABMAAQAAAAAAAAAGABMAAQAAAAAAAAAFABMAAQAAAAAAAAAEABMAAQAAAAAAAAADABMAAQAAAAAAAAACABMAAQAAAAAAAAABABMAAQAAAAAAAAA=")
 tile_set = SubResource("TileSet_escj2")

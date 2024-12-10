@@ -151,6 +151,9 @@ func _register_player(id: int, name_: String):
 	_players[id].player_list_node = node
 	_players[id].color_picker = picker
 	_update_selected_map.rpc_id(id, _selected_map)
+	if game_state == "game":
+		_on_game_started.rpc_id(id, _players, _selected_map, _is_shared_map,
+				-1, Globals.settings, true)
 
 
 func _on_client_disconnected(id: int) -> void:
@@ -191,7 +194,7 @@ func _host_start_game() -> void:
 	if _is_shared_map:
 		map = Globals.MAPS[_selected_map].scene.instantiate()
 		$Players.add_child(map)
-		_tilemap = map.get_node("TileMapLayer")
+		_tilemap = map.get_node("%TileMapLayer")
 		_grid_size = map.grid_size
 		for i in range(players.size()):
 			_players[players[i]].snake_cells = map.get_snake_cells(i)
@@ -221,8 +224,8 @@ func _host_return_to_lobby() -> void:
 
 
 @rpc("reliable")
-func _on_game_started(players: Dictionary, selected_map: int,
-		is_shared_map: bool, snake_id: int, settings: Dictionary) -> void:
+func _on_game_started(players: Dictionary, selected_map: int, is_shared_map: bool,
+		snake_id: int, settings: Dictionary, spectating: bool = false) -> void:
 	Globals.settings = settings
 	_button_continue.hide()
 	
@@ -231,6 +234,7 @@ func _on_game_started(players: Dictionary, selected_map: int,
 	var opp_scale = min(MAX_OPPONENT_GAME_SCALE, 0.9 / (num - 1))
 	var gap = GAME_SIZE.y / (num - 1)
 	var offset = 0
+	var spectate_large = spectating
 	for child in $Players.get_children():
 		#print(multiplayer.get_unique_id(), " ", child.name)
 		var id = int(str(child.name))
@@ -245,20 +249,28 @@ func _on_game_started(players: Dictionary, selected_map: int,
 			_game = child
 		
 		else: # Opponent
-			child.set_map.call_deferred(selected_map, snake_id, is_shared_map, !is_shared_map)
-			if !is_shared_map:
+			child.set_map.call_deferred(selected_map, snake_id, is_shared_map, !is_shared_map or spectate_large)
+			if !is_shared_map and !spectate_large:
 				child.scale = Vector2(opp_scale, opp_scale)
 				child.position = Vector2(OPPONENT_GAME_X, offset)
+			if !is_shared_map:
 				var box = HBoxContainer.new()
 				box.alignment = BoxContainer.ALIGNMENT_CENTER
-				box.custom_minimum_size.x = GAME_SIZE.x * opp_scale
-				box.position = Vector2(OPPONENT_GAME_X + GAME_SIZE.x * opp_scale,
-						offset + GAME_SIZE.y * opp_scale * 0.5 - 24)
+				if spectate_large:
+					child.position.y -= 24
+					box.custom_minimum_size.x = GAME_SIZE.x
+					box.position = Vector2(0, GAME_SIZE.y)
+				else:
+					box.custom_minimum_size.x = GAME_SIZE.x * opp_scale
+					box.position = Vector2(OPPONENT_GAME_X + GAME_SIZE.x * opp_scale,
+							offset + GAME_SIZE.y * opp_scale * 0.5 - 24)
 				$Players.add_child(box)
 				var label = Label.new()
 				label.set_text(players[id].name)
 				box.add_child(label)
-				offset += gap
+				if !spectate_large:
+					offset += gap
+				spectate_large = false
 
 
 @rpc("reliable")
@@ -318,7 +330,10 @@ func _on_player_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) ->
 	for id in _players:
 		if player == id or "snake_cells" not in _players[id]:
 			continue
-		if pos in _players[id].snake_cells:
+		if pos == _players[id].snake_cells[0]: # Head-on collision (both players die)
+			_die.rpc_id(player, true)
+			_die.rpc_id(id, true)
+		elif pos in _players[id].snake_cells: # Colliding to the side of another snake
 			_die.rpc_id(player)
 	_players[player].snake_cells = cells
 	if _is_shared_map and _shared_food_pos == pos:
@@ -331,7 +346,6 @@ func _host_move_shared_food() -> void:
 	for player in _players:
 		snake_cells.append_array(_players[player].snake_cells)
 	_shared_food_pos = await Game.move_food(_tilemap, _grid_size, snake_cells)
-	print("Host is moving food to ", _shared_food_pos, "...")
 	_move_shared_food.rpc(_shared_food_pos)
 
 
@@ -346,8 +360,8 @@ func _grow_snake() -> void:
 
 
 @rpc("reliable")
-func _die() -> void:
-	_game.die()
+func _die(head_on_crash: bool = false) -> void:
+	_game.die(head_on_crash)
 
 
 func _on_snake_died() -> void:
@@ -359,7 +373,7 @@ func _on_player_died() -> void:
 	var player = multiplayer.get_remote_sender_id()
 	_players[player].alive = false
 	_snakes_alive -= 1
-	if _snakes_alive == 1 or _players.keys().size() == 1:
+	if _snakes_alive < 2 or _players.keys().size() == 1:
 		_game_ended.rpc()
 		# If remaining players die within 0.1 seconds of one another,
 		# consider it a tie

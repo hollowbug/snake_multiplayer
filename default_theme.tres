@@ -33,12 +33,16 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mkqtf"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(1, 1, 1, 0.239216)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tlonp"]
+content_margin_left = 24.0
+content_margin_top = 24.0
+content_margin_right = 24.0
+content_margin_bottom = 24.0
+bg_color = Color(0.237539, 0.237539, 0.237539, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
 
 [resource]
 default_font_size = 40
@@ -47,6 +51,6 @@ Button/colors/font_focus_color = Color(0, 0, 0, 1)
 Button/styles/focus = SubResource("StyleBoxFlat_syod5")
 Button/styles/hover = SubResource("StyleBoxFlat_hwf3l")
 Button/styles/normal = SubResource("StyleBoxFlat_6gbki")
-PanelContainer/styles/panel = SubResource("StyleBoxFlat_mkqtf")
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_tlonp")
 TextEdit/colors/background_color = Color(1, 1, 1, 0.0862745)
 TooltipLabel/font_sizes/font_size = 24

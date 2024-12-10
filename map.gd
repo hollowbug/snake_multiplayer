@@ -10,6 +10,6 @@ extends TextureRect
 
 func get_snake_cells(snake_id: int) -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
-	for i in range(-1, snake_length):
+	for i in range(-1, snake_length - 1):
 		cells.append(Vector2i(snakes[snake_id] + i * -snake_dirs[snake_id]))
 	return cells

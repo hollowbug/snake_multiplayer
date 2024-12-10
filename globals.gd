@@ -15,6 +15,14 @@ const MAPS = [
 		type = "large",
 		scene = preload("res://maps/map_02_large.tscn"),
 	},
+	{
+		type = "large",
+		scene = preload("res://maps/map_03_large.tscn"),
+	},
+	{
+		type = "small",
+		scene = preload("res://maps/map_04.tscn"),
+	},
 ]
 
 

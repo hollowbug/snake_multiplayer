@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://p67wtksmv1bq"]
+[gd_scene load_steps=8 format=3 uid="uid://p67wtksmv1bq"]
 
 [ext_resource type="Script" path="res://game.gd" id="1_0c32a"]
 [ext_resource type="Texture2D" uid="uid://37dktm5oyx85" path="res://textures/circle_32.png" id="2_7eanr"]
@@ -15,6 +15,20 @@ properties/1/replication_mode = 2
 properties/2/path = NodePath("Food:position")
 properties/2/spawn = true
 properties/2/replication_mode = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smcse"]
+bg_color = Color(0.226707, 0.226708, 0.226707, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nknl3"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_0c32a")
@@ -65,8 +79,23 @@ offset_left = 207.0
 offset_top = -256.0
 offset_right = 792.0
 offset_bottom = 1139.0
-theme_override_colors/font_color = Color(1, 1, 1, 0.333333)
+theme_override_colors/font_color = Color(1, 1, 1, 0.439216)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
+theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 1024
 text = "3"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="CooldownBar" type="ProgressBar" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 20.0
+offset_top = 980.0
+offset_right = 940.0
+offset_bottom = 1000.0
+theme_override_constants/outline_size = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_smcse")
+theme_override_styles/fill = SubResource("StyleBoxFlat_nknl3")
+value = 100.0
+show_percentage = false
