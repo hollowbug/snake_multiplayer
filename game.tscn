@@ -1,20 +1,22 @@
-[gd_scene load_steps=8 format=3 uid="uid://p67wtksmv1bq"]
+[gd_scene load_steps=7 format=3 uid="uid://p67wtksmv1bq"]
 
 [ext_resource type="Script" path="res://game.gd" id="1_0c32a"]
-[ext_resource type="Texture2D" uid="uid://37dktm5oyx85" path="res://textures/circle_32.png" id="2_7eanr"]
 [ext_resource type="PackedScene" uid="uid://bpwriny2p6yep" path="res://food.tscn" id="2_xy7fe"]
-[ext_resource type="Texture2D" uid="uid://bm7fs6dgiabbp" path="res://textures/eye.png" id="3_f7cbm"]
+[ext_resource type="PackedScene" uid="uid://dk046ipiydxox" path="res://snake.tscn" id="3_dhu1q"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_f3y2n"]
-properties/0/path = NodePath("Line2D:points")
+properties/0/path = NodePath(".:modulate")
 properties/0/spawn = true
-properties/0/replication_mode = 1
-properties/1/path = NodePath(".:modulate")
+properties/0/replication_mode = 2
+properties/1/path = NodePath("Food:position")
 properties/1/spawn = true
 properties/1/replication_mode = 2
-properties/2/path = NodePath("Food:position")
+properties/2/path = NodePath(".:paused")
 properties/2/spawn = true
-properties/2/replication_mode = 1
+properties/2/replication_mode = 2
+properties/3/path = NodePath("Snake:points")
+properties/3/spawn = true
+properties/3/replication_mode = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smcse"]
 bg_color = Color(0.226707, 0.226708, 0.226707, 1)
@@ -39,26 +41,7 @@ replication_config = SubResource("SceneReplicationConfig_f3y2n")
 [node name="Food" parent="." instance=ExtResource("2_xy7fe")]
 z_index = 0
 
-[node name="Line2D" type="Line2D" parent="."]
-texture_repeat = 1
-width = 32.0
-joint_mode = 2
-sharp_limit = 1000.0
-antialiased = true
-
-[node name="Head" type="Sprite2D" parent="."]
-texture = ExtResource("2_7eanr")
-
-[node name="Sprite2D" type="Sprite2D" parent="Head"]
-position = Vector2(8, 10)
-texture = ExtResource("3_f7cbm")
-
-[node name="Sprite2D2" type="Sprite2D" parent="Head"]
-position = Vector2(8, -10)
-texture = ExtResource("3_f7cbm")
-
-[node name="Tail" type="Sprite2D" parent="."]
-texture = ExtResource("2_7eanr")
+[node name="Snake" parent="." instance=ExtResource("3_dhu1q")]
 
 [node name="SnakeUI" type="CanvasLayer" parent="."]
 
@@ -97,5 +80,4 @@ offset_bottom = 1000.0
 theme_override_constants/outline_size = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_smcse")
 theme_override_styles/fill = SubResource("StyleBoxFlat_nknl3")
-value = 100.0
 show_percentage = false

@@ -1,7 +1,7 @@
 extends Node2D
 class_name Game
 
-signal moving_to(pos: Vector2i, cells: Array[Vector2i])
+signal moving_to(cells: Array[Vector2i], speed: float)
 signal food_eaten
 signal died
 
@@ -28,14 +28,15 @@ var _snake_dir		: Vector2
 var _move_progress	:= 0.0
 var _snake_cells	: Array[Vector2i] = []
 var _growing		:= false
+var _crashing		:= false
+var _crash_dist		: float
 var _food_pos		: Vector2i
 var _tilemap 		: TileMapLayer
-@onready var _line	:= $Line2D
-@onready var _head	:= $Head
-@onready var _tail	:= $Tail
+@onready var _snake	:= $Snake
 @onready var _food	:= $Food
 @onready var _countdown_label := %Countdown
 @onready var _cooldown_bar := %CooldownBar
+@onready var _speed_label := %LabelSpeed
 
 @export var player: int
 	#set(value):
@@ -68,17 +69,18 @@ func set_map(map: int, snake_id: int = 0, is_shared_map: bool = false, map_visib
 	var node = Globals.MAPS[map].scene.instantiate()
 	if map_visible:
 		add_child(node)
+		_tilemap = node.get_node("%TileMapLayer")
+		cell_size = node.cell_size
+		grid_size = node.grid_size
 		_cooldown_bar.size.x = node.rect_size.x - 40
+		_countdown_label.position.x = node.rect_size.x / 2 - _countdown_label.size.x / 2
 	else:
 		node.queue_free()
 		_food.hide()
-	cell_size = node.cell_size
-	grid_size = node.grid_size
-	_tilemap = node.get_node("%TileMapLayer")
 	
 	_snake_pos = node.snakes[snake_id]
 	_snake_dir = node.snake_dirs[snake_id]
-	_line.points = PackedVector2Array([
+	_snake.points = PackedVector2Array([
 		_grid_pos_to_world(_snake_pos),
 		_grid_pos_to_world(_snake_pos + -_snake_dir * (node.snake_length - 1)),
 	])
@@ -91,9 +93,7 @@ func set_map(map: int, snake_id: int = 0, is_shared_map: bool = false, map_visib
 
 
 func set_color(color: Color) -> void:
-	_line.default_color = color
-	_head.self_modulate = color
-	_tail.self_modulate = color
+	_snake.set_color(color)
 
 
 func move_shared_food(pos: Vector2i) -> void:
@@ -104,11 +104,11 @@ func move_shared_food(pos: Vector2i) -> void:
 func grow_snake() -> void:
 	_growing = true
 	_snake_length += 1
-	var point_count = _line.get_point_count()
-	var last_point = _line.get_point_position(point_count - 1)
-	var second_to_last = _line.get_point_position(point_count - 2)
+	var point_count = _snake.get_point_count()
+	var last_point = _snake.get_point_position(point_count - 1)
+	var second_to_last = _snake.get_point_position(point_count - 2)
 	var dir = second_to_last.direction_to(last_point)
-	_line.set_point_position(point_count - 1, last_point + dir * _move_progress)
+	_snake.set_point_position(point_count - 1, last_point + dir * _move_progress)
 
 
 @rpc("any_peer", "call_local")
@@ -117,25 +117,28 @@ func start_reverse_cooldown() -> void:
 	_cooldown_bar.value = Globals.settings.reverse_cooldown
 
 
-func die(head_on_crash: bool = false) -> void:
-	if paused:
-		print("game.gd:die() Error: Condition \"paused == true\" is true")
-		return
-	paused = true
-	var collision_offset = 0.65 if head_on_crash else 0.3
-	#if _move_progress < 0.3 * cell_size:
-	var crash_dist = collision_offset - _move_progress / cell_size
-	var tween = create_tween()
-	tween.tween_method((func(pos):
-		_line.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size)
-		),
-		_snake_pos,
-		_snake_pos + _snake_dir * crash_dist,
-		max(0, crash_dist * cell_size / current_speed)
-		)
-	await tween.finished#
-	died.emit()
-	#modulate = Color.WEB_GRAY
+func set_crashing(crash_dist: float = 0.3) -> void:
+	if !_crashing:
+		_crashing = true
+		_crash_dist = crash_dist
+	#if paused:
+		#print("game.gd:die() Error: Condition \"paused == true\" is true")
+		#return
+	#paused = true
+	##var collision_offset = 0.65 if head_on_crash else 0.3
+	##if _move_progress < 0.3 * cell_size:
+	#var crash_dist = collision_offset - _move_progress / cell_size
+	#var tween = create_tween()
+	#tween.tween_method((func(pos):
+		#_snake.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size)
+		#),
+		#_snake_pos,
+		#_snake_pos + _snake_dir * crash_dist,
+		#max(0, crash_dist * cell_size / current_speed)
+		#)
+	#await tween.finished#
+	#died.emit()
+	##modulate = Color.WEB_GRAY
 
 
 func _ready() -> void:
@@ -146,13 +149,17 @@ func _ready() -> void:
 		current_speed = Globals.settings.snake_speed
 		_food.hide()
 	else:
-		%LabelSpeed.queue_free()
+		_speed_label.queue_free()
 		_countdown_label.queue_free()
 		set_process(false)
 
 
 func _process(delta: float) -> void:
-	#queue_redraw()
+	if current_speed == int(current_speed):
+		_speed_label.set_text("Speed: %d" % int(current_speed))
+	else:
+		_speed_label.set_text("Speed: %.1f" % current_speed)
+	queue_redraw()
 	if Input.is_action_just_pressed("up"):
 		_input_queue.push_back(Vector2(0, -1))
 	if Input.is_action_just_pressed("down"):
@@ -161,8 +168,9 @@ func _process(delta: float) -> void:
 		_input_queue.push_back(Vector2(-1, 0))
 	if Input.is_action_just_pressed("right"):
 		_input_queue.push_back(Vector2(1, 0))
-	if Input.is_action_just_pressed("reverse"):
-		_on_reverse_key_pressed()
+	if (Input.is_action_just_pressed("reverse") and Globals.settings.allow_reverse
+			and _current_reverse_cooldown <= 0.0):
+		_reverse_snake()
 	
 	if _countdown > 0.0:
 		_countdown -= delta
@@ -172,28 +180,20 @@ func _process(delta: float) -> void:
 			paused = false
 	else:
 		_move_snake(delta)
-		%LabelSpeed.set_text("Speed: %.1f" % current_speed)
 
 
 func _physics_process(delta: float) -> void:
-	if _cooldown_bar.value > 0:
-		_cooldown_bar.value -= delta
-		if _cooldown_bar.value <= 0:
+	if _current_reverse_cooldown > 0 and !paused:
+		_current_reverse_cooldown -= delta
+		_cooldown_bar.value = _current_reverse_cooldown
+		if _current_reverse_cooldown <= 0:
 			_cooldown_bar.hide()
-	
-	var point_count = _line.get_point_count()
-	if point_count < 2:
-		return
-	var pos0 = _line.get_point_position(0)
-	_head.position = pos0
-	_head.rotation = _line.get_point_position(1).angle_to_point(pos0)
-	_tail.position = _line.get_point_position(point_count - 1)
 
 
-#func _draw() -> void:
-	#for cell in _snake_cells:
-		#var rect = Rect2(cell * cell_size, Vector2(cell_size, cell_size))
-		#draw_rect(rect, Color(1, 0, 0, 0.3))
+func _draw() -> void:
+	for cell in _snake_cells:
+		var rect = Rect2(cell * cell_size, Vector2(cell_size, cell_size))
+		draw_rect(rect, Color(1, 0, 0, 0.3))
 
 
 func _move_snake(delta: float) -> void:
@@ -202,6 +202,9 @@ func _move_snake(delta: float) -> void:
 	
 	var dist_to_next_cell = cell_size - _move_progress
 	var movement_left = current_speed * delta
+	if _crashing:
+		movement_left = clampf(_crash_dist * cell_size - _move_progress, 0, movement_left)
+		#print("%d\t%.3f %.3f" % [multiplayer.get_unique_id(), _move_progress / cell_size, _crash_dist])
 	
 	while dist_to_next_cell <= movement_left:
 		_move_progress = 0.0
@@ -209,13 +212,15 @@ func _move_snake(delta: float) -> void:
 		movement_left -= movement
 		_snake_pos = round(_snake_pos + _snake_dir * movement / cell_size)
 		var point_pos = Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * cell_size
-		_line.set_point_position(0, point_pos)
+		_snake.set_point_position(0, point_pos)
 		dist_to_next_cell = cell_size
-		if !_input_queue.is_empty():
-			var dir = _input_queue.pop_front()
-			if dir.x != _snake_dir.x and dir.y != _snake_dir.y:
-				_snake_dir = dir
-				_line.add_point(point_pos, 0)
+		var input
+		while !_input_queue.is_empty():
+			input = _input_queue.pop_front()
+			if input.x != _snake_dir.x and input.y != _snake_dir.y:
+				_snake_dir = input
+				_snake.add_point(point_pos, 0)
+				break
 		var new_pos = Vector2i(_snake_pos + _snake_dir)
 		if _growing:
 			_growing = false
@@ -223,42 +228,42 @@ func _move_snake(delta: float) -> void:
 			_snake_cells.pop_back()
 			_move_tail(movement)
 		if new_pos in _snake_cells or !_is_cell_empty(new_pos):
-			die()
-			return
-		_snake_cells.push_front(new_pos)
-		moving_to.emit(new_pos, _snake_cells)
-		if _food_pos == new_pos:
-			grow_snake()
-			food_eaten.emit()
-			_move_food()
+			set_crashing()
+		else:
+			if _food_pos == new_pos:
+				grow_snake()
+				food_eaten.emit()
+				_move_food()
+			_snake_cells.push_front(new_pos)
+			moving_to.emit(_snake_cells, current_speed)
 	
 	_snake_pos += movement_left * _snake_dir / cell_size
-	_line.set_point_position(0, Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * cell_size)
+	_snake.set_point_position(0, Vector2(_snake_pos.x + 0.5, _snake_pos.y + 0.5) * cell_size)
 	_move_progress += movement_left
+	if _crashing and _move_progress >= _crash_dist * cell_size:
+		paused = true
+		died.emit()
 	if !_growing:
 		_move_tail(movement_left)
-
-	if _current_reverse_cooldown > 0.0:
-		_current_reverse_cooldown -= min(delta, _current_reverse_cooldown)
 
 
 func _move_tail(amount: float) -> void:
 	var movement_left = amount
 	while movement_left > 0:
-		var num_points = _line.get_point_count()
+		var num_points = _snake.get_point_count()
 		if num_points == 0:
 			print("Error: Trying to move tail past head")
 			paused = true
 			return
-		var point1 = _line.get_point_position(num_points - 1)
-		var point2 = _line.get_point_position(num_points - 2)
+		var point1 = _snake.get_point_position(num_points - 1)
+		var point2 = _snake.get_point_position(num_points - 2)
 		var dist = point1.distance_to(point2)
 		if dist <= amount:
 			movement_left -= dist
-			_line.remove_point(num_points - 1)
+			_snake.remove_point(num_points - 1)
 		else:
 			var dir = point1.direction_to(point2)
-			_line.set_point_position(num_points - 1, point1 + dir * movement_left)
+			_snake.set_point_position(num_points - 1, point1 + dir * movement_left)
 			movement_left = 0
 
 
@@ -282,19 +287,17 @@ func _is_cell_empty(pos) -> bool:
 	)
 
 
-
-
-func _on_reverse_key_pressed() -> void:
-	if !Globals.settings.allow_reverse or _current_reverse_cooldown > 0.0:
-		return
+func _reverse_snake() -> void:
 	_current_reverse_cooldown = Globals.settings.reverse_cooldown
-	var points = _line.points
+	var points = _snake.points
 	points.reverse()
-	_line.set_points(points)
+	_snake.set_points(points)
 	_snake_dir = points[1].direction_to(points[0])
-	_snake_pos = round(_line.get_point_position(0) / cell_size - Vector2(0.5, 0.5))
+	_snake_pos = _snake.get_point_position(0) / cell_size - Vector2(0.5, 0.5)
+	_move_progress = cell_size - _move_progress
 	_snake_cells.reverse()
 	_input_queue = []
+	_crashing = false
 	if _is_shared_map:
 		start_reverse_cooldown()
 	else:

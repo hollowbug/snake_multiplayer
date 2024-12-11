@@ -39,7 +39,7 @@ stretch_mode = 1
 script = ExtResource("2_o2lkv")
 grid_size = Vector2i(30, 20)
 snake_length = 5
-snakes = PackedVector2Array(5, 1, 24, 18, 5, 18, 24, 1, 5, 7, 5, 12, 24, 7, 24, 12)
+snakes = PackedVector2Array(5, 1, 24, 1, 24, 18, 5, 18, 5, 7, 5, 12, 24, 7, 24, 12)
 snake_dirs = PackedVector2Array(1, 0, -1, 0, 1, 0, -1, 0, 1, 0, 1, 0, -1, 0, -1, 0)
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="."]

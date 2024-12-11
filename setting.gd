@@ -44,7 +44,6 @@ func _on_left_pressed() -> void:
 	elif type == "bool":
 		new_value = !value
 	value_changed.emit(new_value)
-	print("Trying to change setting value to ", new_value, "...")
 
 
 func _on_right_pressed() -> void:
@@ -56,4 +55,3 @@ func _on_right_pressed() -> void:
 	elif type == "bool":
 		new_value = !value
 	value_changed.emit(new_value)
-	print("Trying to change setting value to ", new_value, "...")

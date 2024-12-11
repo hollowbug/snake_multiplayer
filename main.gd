@@ -9,15 +9,19 @@ const GAME_SIZE := Vector2(960, 960)
 const MAX_OPPONENT_GAME_SCALE = 0.3
 const OPPONENT_GAME_X := 1100
 const SHARED_GAME_SIZE := Vector2(1280, 960)
-const SHARED_GAME_X := 580
 
 # Host only properties
 var 		_players := {}
+var 		_settings: Dictionary = Globals.settings
+var 	 _num_snakes : int
 var    _snakes_alive : int
-var    _selected_map := 0
+var	  _highest_score : int
+var    _selected_map := 2
 var	  _is_shared_map := false
+var 	 _game_ended := false
 var 		_tilemap : TileMapLayer
 var 	  _grid_size : Vector2i
+var		  _cell_size : int
 var _shared_food_pos : Vector2i
 @onready var _setting_nodes := {
 	snake_speed = %SettingContainer/Setting,
@@ -28,7 +32,6 @@ var _shared_food_pos : Vector2i
 
 # Shared properties
 var game_state = "menu"
-var _settings: Dictionary = Globals.settings
 
 # Client properties
 var 	 _player_name := "Player"
@@ -45,7 +48,6 @@ func _ready() -> void:
 	
 	else: # Client
 		if OS.has_feature("editor"):
-			#%JoinGameIP.set_text("192.168.112.119")
 			%JoinGameIP.set_text("127.0.0.1")
 		multiplayer.connected_to_server.connect(_on_connected)
 		multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -184,9 +186,11 @@ func _on_button_continue_pressed() -> void:
 @rpc("any_peer", "reliable")
 func _host_start_game() -> void:
 	game_state = "game"
+	_game_ended = false
 	%Lobby.hide()
 	var players = _players.keys()
-	_snakes_alive = players.size()
+	_num_snakes = players.size()
+	_snakes_alive = _num_snakes
 	_is_shared_map = (players.size() > 1
 			and Globals.MAPS[_selected_map].type == "large")
 	
@@ -196,6 +200,7 @@ func _host_start_game() -> void:
 		$Players.add_child(map)
 		_tilemap = map.get_node("%TileMapLayer")
 		_grid_size = map.grid_size
+		_cell_size = map.cell_size
 		for i in range(players.size()):
 			_players[players[i]].snake_cells = map.get_snake_cells(i)
 	
@@ -205,6 +210,7 @@ func _host_start_game() -> void:
 		var game = GAME.instantiate()
 		game.name = str(player)
 		$Players.add_child(game, true)
+		_players[player].game = game
 		#print("is_shared_map = ", is_shared_map)
 	for i in range(players.size()):
 		var snake_idx = i if _is_shared_map else 0
@@ -245,7 +251,8 @@ func _on_game_started(players: Dictionary, selected_map: int, is_shared_map: boo
 			child.food_eaten.connect(_on_food_eaten)
 			child.died.connect(_on_snake_died)
 			if is_shared_map:
-				child.moving_to.connect(_on_game_moving_to.bind(id))
+				child.moving_to.connect(_on_game_moving_to)
+				#child.reversed_direction.connect(_on_game_reversed_direction)
 			_game = child
 		
 		else: # Opponent
@@ -321,21 +328,40 @@ func _increase_speed(amount: float) -> void:
 	_game.current_speed += amount
 
 
-func _on_game_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) -> void:
-	_on_player_moving_to.rpc_id(1, pos, cells, player)
+func _on_game_moving_to(cells: Array[Vector2i], speed: float) -> void:
+	_on_player_moving_to.rpc_id(1, cells, speed)
 
 
 @rpc("any_peer", "reliable")
-func _on_player_moving_to(pos: Vector2i, cells: Array[Vector2i], player: int) -> void:
+func _on_player_moving_to(cells: Array[Vector2i], speed: float) -> void:
+	var player = multiplayer.get_remote_sender_id()
+	print(player, " ", cells[0])
+	_players[player].tick = Time.get_ticks_msec()
+	_players[player].snake_cells = cells
+	_players[player].speed = speed
+	var pos = _players[player].snake_cells[0]
+	var direction = _players[player].snake_cells[0] - _players[player].snake_cells[1]
 	for id in _players:
 		if player == id or "snake_cells" not in _players[id]:
 			continue
-		if pos == _players[id].snake_cells[0]: # Head-on collision (both players die)
-			_die.rpc_id(player, true)
-			_die.rpc_id(id, true)
-		elif pos in _players[id].snake_cells: # Colliding to the side of another snake
-			_die.rpc_id(player)
-	_players[player].snake_cells = cells
+		
+		if pos == _players[id].snake_cells[0]: # Colliding into a snake's head
+			if _players[id].alive:
+				var time_passed = (Time.get_ticks_msec() - _players[id].tick) * .001
+				var move_progress = _players[player].speed * time_passed / _cell_size
+				var opp_dir = _players[id].snake_cells[0] - _players[id].snake_cells[1]
+				var crash_dist = (1.0 - move_progress) * 0.5 * speed / _players[id].speed
+				_set_crashing.rpc_id(player, crash_dist + 0.05)
+				_players[player].snake_cells.pop_front()
+			else:
+				_set_crashing.rpc_id(player, 0.5)
+				_players[player].snake_cells.pop_front()
+				_players[player].alive = false
+		
+		elif pos in _players[id].snake_cells.slice(0, -1): # Colliding into the side of a snake
+			_set_crashing.rpc_id(player, 0.5)
+			_players[player].snake_cells.pop_front()
+	
 	if _is_shared_map and _shared_food_pos == pos:
 		_grow_snake.rpc_id(player)
 		_host_move_shared_food()
@@ -360,8 +386,8 @@ func _grow_snake() -> void:
 
 
 @rpc("reliable")
-func _die(head_on_crash: bool = false) -> void:
-	_game.die(head_on_crash)
+func _set_crashing(crash_dist: float = 0.3) -> void:
+	_game.set_crashing(crash_dist)
 
 
 func _on_snake_died() -> void:
@@ -373,39 +399,47 @@ func _on_player_died() -> void:
 	var player = multiplayer.get_remote_sender_id()
 	_players[player].alive = false
 	_snakes_alive -= 1
-	if _snakes_alive < 2 or _players.keys().size() == 1:
-		_game_ended.rpc()
-		# If remaining players die within 0.1 seconds of one another,
-		# consider it a tie
-		await get_tree().create_timer(0.1).timeout
-		_check_winner.call_deferred()
-
-
-func _check_winner() -> void:
-	for id in _players:
-		if _players[id].alive:
-			_on_game_won.rpc_id(id)
-			_players[id].wins += 1
-			var wins_label = _players[id].player_list_node.get_node("%LabelWins")
-			wins_label.set_text("Wins: %d" % _players[id].wins)
+	if _snakes_alive < 2:
+		if !_game_ended:
+			_game_ended = true
+			# If remaining players die within 0.1 seconds of one another,
+			# consider it a tie
+			await get_tree().create_timer(0.1).timeout
+			_end_game.rpc()
+			for id in _players:
+				if _players[id].alive:
+					_show_winner.rpc(id, _players[id].name)
+					_players[id].wins += 1
+					var wins_label = _players[id].player_list_node.get_node("%LabelWins")
+					wins_label.set_text("Wins: %d" % _players[id].wins)
+					return
+			if _num_snakes > 1:
+				_show_winner.rpc(-1, "")
 
 
 @rpc("reliable")
-func _game_ended() -> void:
+func _end_game() -> void:
+	if _game:
+		_game.paused = true
 	if _is_host:
 		_button_continue.show()
 		_button_continue.text = "Continue"
+		
+		
+@rpc("reliable")
+func _show_winner(winner_id: int, winner_name: String) -> void:
+	%LabelWinner.show()
+	if winner_id == -1:
+		%LabelWinner.set_text("DRAW")
+	elif winner_id == multiplayer.get_unique_id():
+		%LabelWinner.set_text("YOU WON!")
+	else:
+		%LabelWinner.set_text(winner_name + " won")
 
 
-@rpc("authority", "call_local", "reliable")
-func _on_game_won() -> void:
-	%YouWon.show()
-	_game.paused = true
-
-
-@rpc("authority", "call_local", "reliable")
+@rpc("call_local", "reliable")
 func _return_to_lobby() -> void:
-	%YouWon.hide()
+	%LabelWinner.hide()
 	for child in $Players.get_children():
 		child.queue_free()
 	if _is_host:

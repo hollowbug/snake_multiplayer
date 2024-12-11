@@ -19,7 +19,7 @@ script = ExtResource("1_dvxxn")
 position = Vector2(60, 60)
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("res://game.tscn")
+_spawnable_scenes = PackedStringArray("res://game.tscn", "res://snake.tscn")
 spawn_path = NodePath("../Players")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
@@ -123,6 +123,7 @@ text = "Join Game"
 
 [node name="Lobby" type="MarginContainer" parent="CanvasLayer"]
 unique_name_in_owner = true
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -151,6 +152,7 @@ custom_minimum_size = Vector2(640, 640)
 
 [node name="SelectedMap" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard/VBoxContainer/SubViewportContainer" index="0"]
 size = Vector2i(640, 640)
+render_target_update_mode = 0
 
 [node name="Map00" parent="CanvasLayer/Lobby/HBoxContainer/VBoxContainer2/MapCard/VBoxContainer/SubViewportContainer/SelectedMap" index="0"]
 snakes = PackedVector2Array()
@@ -256,9 +258,10 @@ size_flags_horizontal = 8
 size_flags_vertical = 8
 text = "Start Game"
 
-[node name="YouWon" type="Label" parent="CanvasLayer"]
+[node name="LabelWinner" type="Label" parent="CanvasLayer"]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(1920, 0)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -275,6 +278,8 @@ theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 256
 text = "YOU WON!"
+horizontal_alignment = 1
+autowrap_mode = 2
 
 [connection signal="pressed" from="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer/Button" to="." method="_on_button_create_game_pressed"]
 [connection signal="pressed" from="CanvasLayer/MainMenu/VBoxContainer/HBoxContainer/VBoxContainer2/Button2" to="." method="_on_button_join_game_pressed"]
