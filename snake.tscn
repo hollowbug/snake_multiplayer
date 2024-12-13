@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://dk046ipiydxox"]
+[gd_scene load_steps=6 format=3 uid="uid://dk046ipiydxox"]
 
 [ext_resource type="Texture2D" uid="uid://37dktm5oyx85" path="res://textures/circle_32.png" id="1_5n212"]
 [ext_resource type="Script" path="res://snake.gd" id="1_fvgx4"]
 [ext_resource type="Texture2D" uid="uid://bm7fs6dgiabbp" path="res://textures/eye.png" id="2_yfcjf"]
+[ext_resource type="Texture2D" uid="uid://cdx43ovol8b5s" path="res://textures/eye_dead.png" id="4_b5vyk"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_g5nch"]
 properties/0/path = NodePath(".:points")
@@ -10,6 +11,7 @@ properties/0/spawn = true
 properties/0/replication_mode = 2
 
 [node name="Snake" type="Line2D"]
+z_index = 20
 texture_repeat = 1
 width = 32.0
 joint_mode = 2
@@ -20,13 +22,25 @@ script = ExtResource("1_fvgx4")
 [node name="Head" type="Sprite2D" parent="."]
 texture = ExtResource("1_5n212")
 
-[node name="Sprite2D" type="Sprite2D" parent="Head"]
+[node name="Eye1" type="Sprite2D" parent="Head"]
 position = Vector2(8, 10)
 texture = ExtResource("2_yfcjf")
 
-[node name="Sprite2D2" type="Sprite2D" parent="Head"]
+[node name="Eye2" type="Sprite2D" parent="Head"]
 position = Vector2(8, -10)
 texture = ExtResource("2_yfcjf")
+
+[node name="DeadEye1" type="Sprite2D" parent="Head"]
+visible = false
+position = Vector2(6, 7)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("4_b5vyk")
+
+[node name="DeadEye2" type="Sprite2D" parent="Head"]
+visible = false
+position = Vector2(6, -7)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("4_b5vyk")
 
 [node name="Tail" type="Sprite2D" parent="."]
 texture = ExtResource("1_5n212")

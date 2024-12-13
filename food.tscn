@@ -3,5 +3,5 @@
 [ext_resource type="Texture2D" uid="uid://v45p1f6wa85s" path="res://textures/food.png" id="1_etaq1"]
 
 [node name="Food" type="Sprite2D"]
-z_index = 1
+z_index = 10
 texture = ExtResource("1_etaq1")

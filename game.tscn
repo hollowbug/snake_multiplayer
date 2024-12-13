@@ -37,7 +37,6 @@ script = ExtResource("1_0c32a")
 replication_config = SubResource("SceneReplicationConfig_f3y2n")
 
 [node name="Food" parent="." instance=ExtResource("2_xy7fe")]
-z_index = 0
 
 [node name="Snake" parent="." instance=ExtResource("3_dhu1q")]
 

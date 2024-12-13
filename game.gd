@@ -18,10 +18,11 @@ enum GAME_STATE { PLAYING, VIEWING_SUMMARY, VIEWING_UPGRADES }
 var paused			:= true
 var current_speed 	: float
 var countdown		:= 0.3
-var map				: TextureRect
+var map				: ColorRect
 var tilemap 		: TileMapLayer
 
 #var _is_shared_map	: bool
+var _debug_draw_cells := []
 var _input_queue 	:= []
 var _snake_length 	:= 4
 var _current_reverse_cooldown := 0.0
@@ -95,7 +96,7 @@ func set_map(map_idx: int, snake_id: int = 0) -> void:
 		_snake_length = node.snake_length
 		map = node
 	
-	if is_multiplayer_authority():
+	if is_multiplayer_authority() and !OS.has_feature("dedicated_server"):
 		await get_tree().create_timer(0.2).timeout
 		move_food()
 
@@ -108,7 +109,7 @@ func set_color(color: Color) -> void:
 func move_food(pos: Vector2i = Vector2i(-1, -1)) -> void:
 	if pos == Vector2i(-1, -1):
 		pos = await get_food_pos(tilemap, grid_size, _snake_cells)
-	_food_pos = pos
+		_food_pos = pos
 	_food.show()
 	_food.position = _grid_pos_to_world(pos)
 
@@ -125,32 +126,20 @@ func grow_snake() -> void:
 
 @rpc("any_peer", "call_local")
 func start_reverse_cooldown() -> void:
+	_current_reverse_cooldown = Globals.settings.reverse_cooldown
 	_cooldown_bar.show()
-	_cooldown_bar.value = Globals.settings.reverse_cooldown
+	_cooldown_bar.value = _current_reverse_cooldown
 
 
 func set_crashing(crash_dist: float = 0.3) -> void:
 	if !_crashing:
 		_crashing = true
 		_crash_dist = crash_dist
-	#if paused:
-		#print("game.gd:die() Error: Condition \"paused == true\" is true")
-		#return
-	#paused = true
-	##var collision_offset = 0.65 if head_on_crash else 0.3
-	##if _move_progress < 0.3 * cell_size:
-	#var crash_dist = collision_offset - _move_progress / cell_size
-	#var tween = create_tween()
-	#tween.tween_method((func(pos):
-		#_snake.set_point_position(0, Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size)
-		#),
-		#_snake_pos,
-		#_snake_pos + _snake_dir * crash_dist,
-		#max(0, crash_dist * cell_size / current_speed)
-		#)
-	#await tween.finished#
-	#died.emit()
-	##modulate = Color.WEB_GRAY
+
+
+@rpc
+func update_debug_draw(cells: Array) -> void:
+	_debug_draw_cells = cells
 
 
 func _ready() -> void:
@@ -165,6 +154,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	queue_redraw()
 	if countdown > 0.0:
 		countdown -= delta
 		_countdown_label.set_text(str(ceil(countdown)))
@@ -177,7 +167,6 @@ func _process(delta: float) -> void:
 			_speed_label.set_text("Speed: %d" % int(current_speed))
 		else:
 			_speed_label.set_text("Speed: %.1f" % current_speed)
-		queue_redraw()
 		if Input.is_action_just_pressed("up"):
 			_input_queue.push_back(Vector2(0, -1))
 		if Input.is_action_just_pressed("down"):
@@ -202,9 +191,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
-	for cell in _snake_cells:
+	for cell in _debug_draw_cells:
 		var rect = Rect2(cell * cell_size, Vector2(cell_size, cell_size))
-		draw_rect(rect, Color(1, 0, 0, 0.3))
+		draw_rect(rect, Color(1, 0, 0, 0.15))
 
 
 func _move_snake(delta: float) -> void:
@@ -254,6 +243,7 @@ func _move_snake(delta: float) -> void:
 	if _crashing and _move_progress >= _crash_dist * cell_size:
 		paused = true
 		died.emit()
+		_snake.set_dead.rpc()
 	if !_growing:
 		_snake.move_tail(movement_left)
 
@@ -263,7 +253,6 @@ func _grid_pos_to_world(pos: Vector2i) -> Vector2:
 
 
 func _reverse_snake() -> void:
-	_current_reverse_cooldown = Globals.settings.reverse_cooldown
 	var points = _snake.points
 	points.reverse()
 	_snake.set_points(points)

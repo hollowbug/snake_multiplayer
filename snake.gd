@@ -10,6 +10,14 @@ func set_color(color: Color) -> void:
 	_tail.self_modulate = color
 
 
+@rpc("reliable")
+func set_dead() -> void:
+	$Head/Eye1.hide()
+	$Head/Eye2.hide()
+	$Head/DeadEye1.show()
+	$Head/DeadEye2.show()
+
+
 func move(direction: Vector2, distance: float, move_tail: bool = true) -> void:
 	set_point_position(0, points[0] + direction * distance)
 	if move_tail:
