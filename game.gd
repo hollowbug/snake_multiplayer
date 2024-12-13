@@ -17,12 +17,14 @@ enum GAME_STATE { PLAYING, VIEWING_SUMMARY, VIEWING_UPGRADES }
 
 var paused			:= true
 var current_speed 	: float
+var countdown		:= 0.3
+var map				: TextureRect
+var tilemap 		: TileMapLayer
 
-var _is_shared_map	: bool
+#var _is_shared_map	: bool
 var _input_queue 	:= []
 var _snake_length 	:= 4
 var _current_reverse_cooldown := 0.0
-var _countdown		:= 3.0
 var _snake_pos 		: Vector2
 var _snake_dir		: Vector2
 var _move_progress	:= 0.0
@@ -31,7 +33,6 @@ var _growing		:= false
 var _crashing		:= false
 var _crash_dist		: float
 var _food_pos		: Vector2i
-var _tilemap 		: TileMapLayer
 @onready var _snake	:= $Snake
 @onready var _food	:= $Food
 @onready var _countdown_label := %Countdown
@@ -45,7 +46,16 @@ var _tilemap 		: TileMapLayer
 		#_set_authority.call_deferred(player)
 
 
-static func move_food(tilemap: TileMapLayer, grid_size_: Vector2i, snake_cells: Array) -> Vector2i:
+
+func is_cell_empty(pos) -> bool:
+	return (
+		pos.x >= 0 and pos.x < grid_size.x
+		and pos.y >= 0 and pos.y < grid_size.y
+		and tilemap.get_cell_tile_data(pos) == null
+	)
+	
+	
+static func get_food_pos(tilemap_: TileMapLayer, grid_size_: Vector2i, snake_cells: Array) -> Vector2i:
 	var pos: Vector2i
 	var attempts = 0
 	while true:
@@ -55,48 +65,50 @@ static func move_food(tilemap: TileMapLayer, grid_size_: Vector2i, snake_cells: 
 		if attempts == 0:
 			await Globals.wait_for_next_frame()
 		pos = Vector2i(randi() % grid_size_.x, randi() % grid_size_.y)
-		if ((!tilemap or tilemap.get_cell_tile_data(pos) == null)
+		if ((!tilemap_ or tilemap_.get_cell_tile_data(pos) == null)
 			and pos not in snake_cells
 		):
 			break
 	return pos
 
 
-func set_map(map: int, snake_id: int = 0, is_shared_map: bool = false, map_visible: bool = true) -> void:
-	#print(multiplayer.get_unique_id(), " is loading map ", map)
+func set_map(map_idx: int, snake_id: int = 0) -> void:
 	_cooldown_bar.max_value = Globals.settings.reverse_cooldown
-	_is_shared_map = is_shared_map
-	var node = Globals.MAPS[map].scene.instantiate()
-	if map_visible:
-		add_child(node)
-		_tilemap = node.get_node("%TileMapLayer")
-		cell_size = node.cell_size
-		grid_size = node.grid_size
-		_cooldown_bar.size.x = node.rect_size.x - 40
-		_countdown_label.position.x = node.rect_size.x / 2 - _countdown_label.size.x / 2
+	var node = Globals.MAPS[map_idx].scene.instantiate()
+	add_child(node)
+	tilemap = node.get_node("%TileMapLayer")
+	cell_size = node.cell_size
+	grid_size = node.grid_size
+	_cooldown_bar.size.x = node.rect_size.x - 40
+	_countdown_label.position.x = node.rect_size.x / 2 - _countdown_label.size.x / 2
+	
+	if snake_id == -1:
+		_snake.queue_free()
 	else:
-		node.queue_free()
-		_food.hide()
+		_snake_pos = node.snakes[snake_id]
+		_snake_dir = node.snake_dirs[snake_id]
+		_snake.points = PackedVector2Array([
+			_grid_pos_to_world(_snake_pos),
+			_grid_pos_to_world(_snake_pos + -_snake_dir * (node.snake_length - 1)),
+		])
+		_snake_cells = node.get_snake_cells(snake_id)
+		_snake_length = node.snake_length
+		map = node
 	
-	_snake_pos = node.snakes[snake_id]
-	_snake_dir = node.snake_dirs[snake_id]
-	_snake.points = PackedVector2Array([
-		_grid_pos_to_world(_snake_pos),
-		_grid_pos_to_world(_snake_pos + -_snake_dir * (node.snake_length - 1)),
-	])
-	_snake_cells = node.get_snake_cells(snake_id)
-	_snake_length = node.snake_length
-	
-	if !_is_shared_map:
+	if is_multiplayer_authority():
 		await get_tree().create_timer(0.2).timeout
-		_move_food()
+		move_food()
 
 
 func set_color(color: Color) -> void:
 	_snake.set_color(color)
 
 
-func move_shared_food(pos: Vector2i) -> void:
+@rpc("reliable")
+func move_food(pos: Vector2i = Vector2i(-1, -1)) -> void:
+	if pos == Vector2i(-1, -1):
+		pos = await get_food_pos(tilemap, grid_size, _snake_cells)
+	_food_pos = pos
 	_food.show()
 	_food.position = _grid_pos_to_world(pos)
 
@@ -150,36 +162,35 @@ func _ready() -> void:
 		_food.hide()
 	else:
 		_speed_label.queue_free()
-		_countdown_label.queue_free()
-		set_process(false)
 
 
 func _process(delta: float) -> void:
-	if current_speed == int(current_speed):
-		_speed_label.set_text("Speed: %d" % int(current_speed))
-	else:
-		_speed_label.set_text("Speed: %.1f" % current_speed)
-	queue_redraw()
-	if Input.is_action_just_pressed("up"):
-		_input_queue.push_back(Vector2(0, -1))
-	if Input.is_action_just_pressed("down"):
-		_input_queue.push_back(Vector2(0, 1))
-	if Input.is_action_just_pressed("left"):
-		_input_queue.push_back(Vector2(-1, 0))
-	if Input.is_action_just_pressed("right"):
-		_input_queue.push_back(Vector2(1, 0))
-	if (Input.is_action_just_pressed("reverse") and Globals.settings.allow_reverse
-			and _current_reverse_cooldown <= 0.0):
-		_reverse_snake()
-	
-	if _countdown > 0.0:
-		_countdown -= delta
-		_countdown_label.set_text(str(ceil(_countdown)))
-		if _countdown <= 0.0:
+	if countdown > 0.0:
+		countdown -= delta
+		_countdown_label.set_text(str(ceil(countdown)))
+		if countdown <= 0.0:
 			_countdown_label.hide()
 			paused = false
-	else:
-		_move_snake(delta)
+	
+	if is_multiplayer_authority() and !OS.has_feature("dedicated_server"):
+		if current_speed == int(current_speed):
+			_speed_label.set_text("Speed: %d" % int(current_speed))
+		else:
+			_speed_label.set_text("Speed: %.1f" % current_speed)
+		queue_redraw()
+		if Input.is_action_just_pressed("up"):
+			_input_queue.push_back(Vector2(0, -1))
+		if Input.is_action_just_pressed("down"):
+			_input_queue.push_back(Vector2(0, 1))
+		if Input.is_action_just_pressed("left"):
+			_input_queue.push_back(Vector2(-1, 0))
+		if Input.is_action_just_pressed("right"):
+			_input_queue.push_back(Vector2(1, 0))
+		if (Input.is_action_just_pressed("reverse") and Globals.settings.allow_reverse
+				and _current_reverse_cooldown <= 0.0):
+			_reverse_snake()
+		if countdown <= 0:
+			_move_snake(delta)
 
 
 func _physics_process(delta: float) -> void:
@@ -226,14 +237,14 @@ func _move_snake(delta: float) -> void:
 			_growing = false
 		else:
 			_snake_cells.pop_back()
-			_move_tail(movement)
-		if new_pos in _snake_cells or !_is_cell_empty(new_pos):
+			_snake.move_tail(movement)
+		if new_pos in _snake_cells or !is_cell_empty(new_pos):
 			set_crashing()
 		else:
 			if _food_pos == new_pos:
-				grow_snake()
 				food_eaten.emit()
-				_move_food()
+				grow_snake()
+				move_food()
 			_snake_cells.push_front(new_pos)
 			moving_to.emit(_snake_cells, current_speed)
 	
@@ -244,47 +255,11 @@ func _move_snake(delta: float) -> void:
 		paused = true
 		died.emit()
 	if !_growing:
-		_move_tail(movement_left)
-
-
-func _move_tail(amount: float) -> void:
-	var movement_left = amount
-	while movement_left > 0:
-		var num_points = _snake.get_point_count()
-		if num_points == 0:
-			print("Error: Trying to move tail past head")
-			paused = true
-			return
-		var point1 = _snake.get_point_position(num_points - 1)
-		var point2 = _snake.get_point_position(num_points - 2)
-		var dist = point1.distance_to(point2)
-		if dist <= amount:
-			movement_left -= dist
-			_snake.remove_point(num_points - 1)
-		else:
-			var dir = point1.direction_to(point2)
-			_snake.set_point_position(num_points - 1, point1 + dir * movement_left)
-			movement_left = 0
-
-
-func _move_food() -> void:
-	var pos = await move_food(_tilemap, grid_size, _snake_cells)
-	_food_pos = pos
-	_food.show()
-	_food.position = _grid_pos_to_world(pos)
-	#print("Moving food to position ", pos, " (", _food.position, ")")
+		_snake.move_tail(movement_left)
 
 
 func _grid_pos_to_world(pos: Vector2i) -> Vector2:
 	return Vector2(pos.x + 0.5, pos.y + 0.5) * cell_size
-
-
-func _is_cell_empty(pos) -> bool:
-	return (
-		pos.x >= 0 and pos.x < grid_size.x
-		and pos.y >= 0 and pos.y < grid_size.y
-		and _tilemap.get_cell_tile_data(pos) == null
-	)
 
 
 func _reverse_snake() -> void:
@@ -296,9 +271,11 @@ func _reverse_snake() -> void:
 	_snake_pos = _snake.get_point_position(0) / cell_size - Vector2(0.5, 0.5)
 	_move_progress = cell_size - _move_progress
 	_snake_cells.reverse()
+	_snake_cells.push_front(_snake_cells[0] + Vector2i(_snake_dir))
+	_snake_cells.pop_back()
 	_input_queue = []
 	_crashing = false
-	if _is_shared_map:
-		start_reverse_cooldown()
-	else:
-		start_reverse_cooldown.rpc()
+	#if _is_shared_map:
+		#start_reverse_cooldown()
+	#else:
+	start_reverse_cooldown.rpc()

@@ -1,10 +1,10 @@
-extends Node
+extends Node2D
 
 @export var SPEED_INCREASE := 2.0
 
 const PLAYER_NAME_LABEL = preload("res://player_name.tscn")
-#const PLAYER = preload("res://player.tscn")
 const GAME = preload("res://game.tscn")
+const SNAKE = preload("res://snake.tscn")
 const GAME_SIZE := Vector2(960, 960)
 const MAX_OPPONENT_GAME_SCALE = 0.3
 const OPPONENT_GAME_X := 1100
@@ -12,16 +12,13 @@ const SHARED_GAME_SIZE := Vector2(1280, 960)
 
 # Host only properties
 var 		_players := {}
-var 		_settings: Dictionary = Globals.settings
+var 	   _settings : Dictionary = Globals.settings
 var 	 _num_snakes : int
 var    _snakes_alive : int
-var	  _highest_score : int
+#var	  _highest_score : int
 var    _selected_map := 2
-var	  _is_shared_map := false
 var 	 _game_ended := false
-var 		_tilemap : TileMapLayer
-var 	  _grid_size : Vector2i
-var		  _cell_size : int
+var	  _is_shared_map := false
 var _shared_food_pos : Vector2i
 @onready var _setting_nodes := {
 	snake_speed = %SettingContainer/Setting,
@@ -47,6 +44,7 @@ func _ready() -> void:
 		_create_server(int(port) if port else 20527)
 	
 	else: # Client
+		set_process(false)
 		if OS.has_feature("editor"):
 			%JoinGameIP.set_text("127.0.0.1")
 		multiplayer.connected_to_server.connect(_on_connected)
@@ -77,6 +75,32 @@ func _input(event: InputEvent) -> void:
 					_register_player.rpc_id(1, id, "Bot")
 					#_players[id].color = color
 					#_players[id].color_picker.color = color
+	
+	if event.is_action_pressed("up"):
+		_on_player_input.rpc_id(1, Vector2(0, -1))
+	if event.is_action_pressed("down"):
+		_on_player_input.rpc_id(1, Vector2(0, 1))
+	if event.is_action_pressed("left"):
+		_on_player_input.rpc_id(1, Vector2(-1, 0))
+	if event.is_action_pressed("right"):
+		_on_player_input.rpc_id(1, Vector2(1, 0))
+	if event.is_action_pressed("reverse"):
+		_on_player_input.rpc_id(1, "reverse")
+
+
+func _process(delta: float) -> void:
+	if !_is_shared_map or !_game or _game.countdown > 0:
+		return
+	_host_move_players(delta)
+	queue_redraw()
+
+
+func _draw() -> void:
+	for player in _players:
+		if "snake_cells" in _players[player]:
+			for cell in _players[player].snake_cells:
+				var rect = Rect2(cell * _game.cell_size, Vector2(_game.cell_size, _game.cell_size))
+				draw_rect(rect, Color(0, 1, 0, 0.5))		
 
 
 func _create_server(port: int) -> void:
@@ -194,27 +218,39 @@ func _host_start_game() -> void:
 	_is_shared_map = (players.size() > 1
 			and Globals.MAPS[_selected_map].type == "large")
 	
-	var map
 	if _is_shared_map:
-		map = Globals.MAPS[_selected_map].scene.instantiate()
-		$Players.add_child(map)
-		_tilemap = map.get_node("%TileMapLayer")
-		_grid_size = map.grid_size
-		_cell_size = map.cell_size
+		_game = GAME.instantiate()
+		_game.name = "1"
+		_game.set_physics_process(false)
+		$Players.add_child(_game, true)
+		_game.set_map(_selected_map)
+		#var _shared_map = Globals.MAPS[_selected_map].scene.instantiate()
+		#_tilemap = _shared_map.get_node("%TileMapLayer")
+		#_grid_size = _shared_map.grid_size
+		#_cell_size = _shared_map.cell_size
 		for i in range(players.size()):
-			_players[players[i]].snake_cells = map.get_snake_cells(i)
+			var snake = SNAKE.instantiate()
+			snake.points = _game.map.get_snake_points(i)
+			$Players.add_child(snake, true)
+			_players[players[i]].snake = snake
+			_players[players[i]].snake_cells = _game.map.get_snake_cells(i)
+			_players[players[i]].snake_dir = _game.map.snake_dirs[i]
+			_players[players[i]].speed = Globals.settings.snake_speed
+			_players[players[i]].move_progress = 0.0
+			_players[players[i]].reverse_cooldown = 0.0
+			_players[players[i]].input_queue = []
 	
-	for player in _players:
+	else:
+		for player in _players:
+			var game = GAME.instantiate()
+			game.name = str(player)
+			$Players.add_child(game, true)
+			_players[player].game = game
+	
+	for player in players:
 		_players[player].alive = true
-		_players[player].ready = false
-		var game = GAME.instantiate()
-		game.name = str(player)
-		$Players.add_child(game, true)
-		_players[player].game = game
-		#print("is_shared_map = ", is_shared_map)
-	for i in range(players.size()):
-		var snake_idx = i if _is_shared_map else 0
-		_on_game_started.rpc_id(players[i], _players, _selected_map, _is_shared_map, snake_idx, _settings)
+		#_players[player].ready = false
+		_on_game_started.rpc_id(player, _players, _selected_map, _is_shared_map, _settings)
 	if _is_shared_map:
 		await get_tree().create_timer(0.2).timeout
 		_host_move_shared_food()
@@ -231,9 +267,12 @@ func _host_return_to_lobby() -> void:
 
 @rpc("reliable")
 func _on_game_started(players: Dictionary, selected_map: int, is_shared_map: bool,
-		snake_id: int, settings: Dictionary, spectating: bool = false) -> void:
+		settings: Dictionary, spectating: bool = false) -> void:
 	Globals.settings = settings
 	_button_continue.hide()
+	if is_shared_map:
+		$Players.get_child(0).set_map(selected_map, -1)
+		return
 	
 	# Position opponents
 	var num = $Players.get_child_count()
@@ -247,16 +286,13 @@ func _on_game_started(players: Dictionary, selected_map: int, is_shared_map: boo
 		child.set_color(players[id].color)
 		
 		if id == multiplayer.get_unique_id(): # Self
-			child.set_map.call_deferred(selected_map, snake_id, is_shared_map)
+			child.set_map.call_deferred(selected_map, 0)#, is_shared_map)
 			child.food_eaten.connect(_on_food_eaten)
 			child.died.connect(_on_snake_died)
-			if is_shared_map:
-				child.moving_to.connect(_on_game_moving_to)
-				#child.reversed_direction.connect(_on_game_reversed_direction)
 			_game = child
 		
 		else: # Opponent
-			child.set_map.call_deferred(selected_map, snake_id, is_shared_map, !is_shared_map or spectate_large)
+			child.set_map.call_deferred(selected_map, 0)#, is_shared_map, !is_shared_map or spectate_large)
 			if !is_shared_map and !spectate_large:
 				child.scale = Vector2(opp_scale, opp_scale)
 				child.position = Vector2(OPPONENT_GAME_X, offset)
@@ -323,47 +359,86 @@ func _on_player_ate_food() -> void:
 			_increase_speed.rpc_id(id, float(Globals.settings.speed_increase) / (_snakes_alive - 1))
 
 
+@rpc("any_peer")
+func _on_player_input(input) -> void:
+	if !_is_shared_map:
+		return
+	var player = multiplayer.get_remote_sender_id()
+	if _players[player].alive:
+		_players[player].input_queue.push_back(input)
+
+
 @rpc("reliable")
 func _increase_speed(amount: float) -> void:
 	_game.current_speed += amount
 
 
-func _on_game_moving_to(cells: Array[Vector2i], speed: float) -> void:
-	_on_player_moving_to.rpc_id(1, cells, speed)
-
-
-@rpc("any_peer", "reliable")
-func _on_player_moving_to(cells: Array[Vector2i], speed: float) -> void:
-	var player = multiplayer.get_remote_sender_id()
-	print(player, " ", cells[0])
-	_players[player].tick = Time.get_ticks_msec()
-	_players[player].snake_cells = cells
-	_players[player].speed = speed
-	var pos = _players[player].snake_cells[0]
-	var direction = _players[player].snake_cells[0] - _players[player].snake_cells[1]
+func _host_move_players(delta: float) -> void:
+	var moved_players = []
 	for id in _players:
-		if player == id or "snake_cells" not in _players[id]:
-			continue
-		
-		if pos == _players[id].snake_cells[0]: # Colliding into a snake's head
-			if _players[id].alive:
-				var time_passed = (Time.get_ticks_msec() - _players[id].tick) * .001
-				var move_progress = _players[player].speed * time_passed / _cell_size
-				var opp_dir = _players[id].snake_cells[0] - _players[id].snake_cells[1]
-				var crash_dist = (1.0 - move_progress) * 0.5 * speed / _players[id].speed
-				_set_crashing.rpc_id(player, crash_dist + 0.05)
-				_players[player].snake_cells.pop_front()
-			else:
-				_set_crashing.rpc_id(player, 0.5)
-				_players[player].snake_cells.pop_front()
-				_players[player].alive = false
-		
-		elif pos in _players[id].snake_cells.slice(0, -1): # Colliding into the side of a snake
-			_set_crashing.rpc_id(player, 0.5)
-			_players[player].snake_cells.pop_front()
+		var player = _players[id]
+		if player.alive:
+			player.reverse_cooldown -= delta
+			player.move_progress += delta * player.speed
+			if player.move_progress >= _game.cell_size:
+				player.move_progress -= _game.cell_size
+				
+				var reversed = false
+				while !player.input_queue.is_empty():
+					var input = player.input_queue.pop_front()
+					if (input is String and input == "reverse" and Globals.settings.allow_reverse
+							and player.reverse_cooldown <= 0):
+						reversed = true
+						_game.start_reverse_cooldown.rpc_id(id)
+						player.reverse_cooldown = Globals.settings.reverse_cooldown
+						player.snake_cells.reverse()
+						var points = player.snake.points
+						points.reverse()
+						player.snake.points = points
+						break
+					if (input is Vector2 and input.x != player.snake_dir.x
+							and input.y != player.snake_dir.y):
+						player.snake_dir = input
+						player.snake.add_point(player.snake.get_point_position(0), 0)
+						break
+						
+				if reversed:
+					continue
+				
+				var new_pos = player.snake_cells[0] + Vector2i(player.snake_dir)
+				if _game.is_cell_empty(new_pos):
+					player.snake_cells.push_front(new_pos)
+					moved_players.append(id)
+				else:
+					player.alive = false
+					_snakes_alive -= 1
+					player.snake.move(player.snake_dir, _game.cell_size * 0.3)
 	
-	if _is_shared_map and _shared_food_pos == pos:
-		_grow_snake.rpc_id(player)
+	var food_eaten = false
+	
+	for id in moved_players:
+		var player = _players[id]
+		print(player.snake_cells[0], " ", _shared_food_pos)
+		player.ate_food = player.snake_cells[0] == _shared_food_pos
+		if player.ate_food:
+			food_eaten = true
+		else:
+			player.snake_cells.pop_back()
+	
+	for id in moved_players:
+		var player = _players[id]
+		for id2 in _players:
+			if id == id2:
+				continue
+			if player.snake_cells[0] in _players[id2].snake_cells:
+				player.alive = false
+				_snakes_alive -= 1
+				player.snake.move(player.snake_dir, _game.cell_size * 0.65, !player.ate_food)
+				break
+		var move_dist = 1 if player.alive else 0.65
+		player.snake.move(player.snake_dir, _game.cell_size * move_dist, !player.ate_food)
+			
+	if food_eaten:
 		_host_move_shared_food()
 
 
@@ -371,13 +446,8 @@ func _host_move_shared_food() -> void:
 	var snake_cells = []
 	for player in _players:
 		snake_cells.append_array(_players[player].snake_cells)
-	_shared_food_pos = await Game.move_food(_tilemap, _grid_size, snake_cells)
-	_move_shared_food.rpc(_shared_food_pos)
-
-
-@rpc("reliable")
-func _move_shared_food(pos: Vector2i) -> void:
-	_game.move_shared_food(pos)
+	_shared_food_pos = await Game.get_food_pos(_game.tilemap, _game.grid_size, snake_cells)
+	_game.move_food.rpc(_shared_food_pos)
 
 
 @rpc("reliable")

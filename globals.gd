@@ -27,8 +27,8 @@ const MAPS = [
 
 
 var settings = {
-	snake_speed = 200,
-	speed_increase = 2,
+	snake_speed = 200.0,
+	speed_increase = 2.0,
 	allow_reverse = true,
 	reverse_cooldown = 30,
 }

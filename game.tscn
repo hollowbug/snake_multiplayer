@@ -14,9 +14,6 @@ properties/1/replication_mode = 2
 properties/2/path = NodePath(".:paused")
 properties/2/spawn = true
 properties/2/replication_mode = 2
-properties/3/path = NodePath("Snake:points")
-properties/3/spawn = true
-properties/3/replication_mode = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_smcse"]
 bg_color = Color(0.226707, 0.226708, 0.226707, 1)
@@ -33,6 +30,7 @@ corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
 [node name="Game" type="Node2D"]
+z_index = -1
 script = ExtResource("1_0c32a")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]

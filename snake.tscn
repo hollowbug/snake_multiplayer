@@ -1,8 +1,13 @@
-[gd_scene load_steps=4 format=3 uid="uid://dk046ipiydxox"]
+[gd_scene load_steps=5 format=3 uid="uid://dk046ipiydxox"]
 
 [ext_resource type="Texture2D" uid="uid://37dktm5oyx85" path="res://textures/circle_32.png" id="1_5n212"]
 [ext_resource type="Script" path="res://snake.gd" id="1_fvgx4"]
 [ext_resource type="Texture2D" uid="uid://bm7fs6dgiabbp" path="res://textures/eye.png" id="2_yfcjf"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_g5nch"]
+properties/0/path = NodePath(".:points")
+properties/0/spawn = true
+properties/0/replication_mode = 2
 
 [node name="Snake" type="Line2D"]
 texture_repeat = 1
@@ -25,3 +30,6 @@ texture = ExtResource("2_yfcjf")
 
 [node name="Tail" type="Sprite2D" parent="."]
 texture = ExtResource("1_5n212")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_g5nch")
